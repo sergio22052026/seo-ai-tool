@@ -73,44 +73,121 @@ app.post('/api/admin/change-password', (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/analyze', async (req, res) => {
+// STEP 1: suggerimenti keyword e competitor
+app.post('/api/suggest', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
-  const { company, lang, kwCount, businessType } = req.body;
+  const { company, lang, kwCount, businessType, geoType } = req.body;
   if (!company) return res.status(400).json({ error: 'company mancante' });
   if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'API key Anthropic non configurata.' });
 
-  const n = parseInt(kwCount) || 5;
+  const n = Math.min(Math.max(parseInt(kwCount) || 5, 1), 15);
 
-  // Geo context based on business type
-  const geoInstructions = {
-    'b2c-locale':    'È un business B2C locale. Le keyword DEVONO includere la città/provincia reale dove opera il brand (es. "ristorante Ancona", "parrucchiere Jesi"). I competitor devono essere locali, nella stessa città/zona.',
-    'b2c-regionale': 'È un business B2C regionale. Le keyword devono coprire la regione di riferimento del brand (es. "ristorante Marche", "hotel costa adriatica"). I competitor devono essere regionali.',
-    'b2b-regionale': 'È un business B2B regionale. Le keyword devono essere professionali e coprire la regione/macroarea del brand. I competitor devono essere aziende B2B della stessa area.',
-    'b2b-nazionale': 'È un business B2B nazionale. Le keyword devono essere professionali e senza geolocalizzazione specifica (es. "software gestione magazzino", "consulenza HR aziendale"). I competitor devono essere nazionali.'
+  // Istruzioni tipo business
+  const bizInstructions = {
+    'b2c-locale':    'Business B2C locale. I competitor devono essere locali, nella stessa città/zona.',
+    'b2c-regionale': 'Business B2C regionale. I competitor devono essere regionali.',
+    'b2b-regionale': 'Business B2B regionale/pluriregionale. I competitor devono essere aziende B2B della stessa area.',
+    'b2b-nazionale': 'Business B2B nazionale. I competitor devono essere nazionali.'
   };
-  const geoCtx = geoInstructions[businessType] || geoInstructions['b2c-locale'];
 
-  const prompt = `Sei un esperto SEO, Google Ads e digital marketing. Analizza il brand/sito: "${company}" nella lingua "${lang || 'it'}".
+  // Istruzioni geolocalizzazione keyword dettagliate
+  const geoInstructions = {
+    'comunale': `Le keyword DEVONO contenere esplicitamente il nome del COMUNE dove opera il brand (es. "ristorante Ancona", "idraulico Jesi"). Sono keyword per chi cerca quel servizio specificando il comune. Volume tipicamente basso ma conversione alta.`,
+    'provinciale': `Le keyword DEVONO contenere esplicitamente il nome della PROVINCIA o città capoluogo di provincia (es. "ristorante provincia Ancona", "hotel Ancona"). Includono anche i comuni limitrofi della stessa provincia.`,
+    'multiprovinciale': `Le keyword possono contenere i nomi di più province o aree geografiche adiacenti (es. "ristorante Marche nord", "servizi Ancona Pesaro"). Coprono un bacino di più province.`,
+    'regionale': `Le keyword DEVONO contenere il nome della REGIONE (es. "ristorante Marche", "hotel costa adriatica marchigiana"). Per chi cerca a livello regionale senza specificare città.`,
+    'pluriregionale': `Le keyword coprono più regioni adiacenti (es. "ristorante centro Italia", "hotel Adriatico"). Senza geo specifica ma con targeting implicito multiregionale.`,
+    'nazionale': `Le keyword NON contengono riferimenti geografici. Sono keyword generiche cercate a livello nazionale (es. "ristorante pesce fresco", "hotel 4 stelle"). Il targeting geografico è solo nella campagna Google Ads, non nella keyword stessa.`,
+    'internazionale': `Le keyword sono in più lingue o senza geo, per intercettare ricerche dall'estero (es. "seafood restaurant Italy", "hotel marche italy"). Utile per brand con clientela turistica internazionale.`
+  };
 
-ISTRUZIONI GEOGRAFICHE OBBLIGATORIE: ${geoCtx}
-NON usare mai Roma o altre città non pertinenti al brand analizzato.
+  const bizCtx = bizInstructions[businessType] || bizInstructions['b2c-locale'];
+  const geoCtx = geoInstructions[geoType] || geoInstructions['comunale'];
+
+  const prompt = `Sei un esperto SEO e Google Ads. Analizza il brand: "${company}" (lingua: ${lang||'it'}).
+
+TIPO DI BUSINESS: ${bizCtx}
+GEOLOCALIZZAZIONE KEYWORD: ${geoCtx}
+IMPORTANTE: Non usare mai città o aree geografiche non pertinenti al brand analizzato. Identifica prima dove opera il brand, poi applica la geo corretta.
 
 Rispondi SOLO con JSON valido (nessun testo, nessun markdown):
 {
   "company": "nome brand",
   "industry": "settore",
-  "website": "url sito",
   "location": "città/zona reale del brand",
+  "website": "url sito se noto",
+  "suggestedKeywords": [
+    {
+      "kw": "keyword con geo applicata correttamente",
+      "volume": <int mensile realistico per quella geo>,
+      "cpc": <float>,
+      "competition": "alta|media|bassa",
+      "intent": "informazionale|navigazionale|commerciale|transazionale",
+      "geoLevel": "${geoType}",
+      "reason": "perché è rilevante in 1 frase breve"
+    }
+  ],
+  "suggestedCompetitors": [
+    {
+      "name": "nome competitor",
+      "domain": "dominio",
+      "reason": "perché è un competitor diretto in 1 frase"
+    }
+  ]
+}
+Genera esattamente ${n * 2} keyword suggerite (il doppio di quelle richieste, max 30) e esattamente 10 competitor suggeriti. Dati realistici basati su ciò che sai del brand.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await response.json();
+    if (data.error) return res.status(500).json({ error: data.error.message });
+    const raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+    res.json(JSON.parse(raw));
+  } catch (err) {
+    res.status(500).json({ error: 'Errore suggerimenti: ' + err.message });
+  }
+});
+
+// STEP 2: analisi completa
+app.post('/api/analyze', async (req, res) => {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
+  const { company, lang, businessType, geoType, selectedKeywords, selectedCompetitors, companyInfo } = req.body;
+  if (!company) return res.status(400).json({ error: 'company mancante' });
+  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'API key Anthropic non configurata.' });
+
+  const kwList = selectedKeywords.map(k => `"${k.kw}" (vol. ~${k.volume}/mese, CPC €${k.cpc}, comp: ${k.competition}, intento: ${k.intent})`).join('; ');
+  const compList = selectedCompetitors.map(c => `${c.name} (${c.domain})`).join(', ');
+
+  const bizMap = { 'b2c-locale':'B2C locale', 'b2c-regionale':'B2C regionale', 'b2b-regionale':'B2B regionale/pluriregionale', 'b2b-nazionale':'B2B nazionale' };
+  const geoMap = { 'comunale':'geo comunale', 'provinciale':'geo provinciale', 'multiprovinciale':'geo multiprovinciale', 'regionale':'geo regionale', 'pluriregionale':'geo pluriregionale', 'nazionale':'nazionale senza geo', 'internazionale':'internazionale' };
+
+  const prompt = `Sei un esperto SEO e digital marketing. Analizza il brand: "${company}".
+Tipo business: ${bizMap[businessType]||businessType}. Geo keyword: ${geoMap[geoType]||geoType}. Lingua: ${lang||'it'}.
+Settore: ${companyInfo?.industry||''}. Sede: ${companyInfo?.location||''}. Sito: ${companyInfo?.website||''}.
+
+Keyword selezionate (analizza ESATTAMENTE queste): ${kwList}
+Competitor selezionati (analizza ESATTAMENTE questi): ${compList}
+
+Rispondi SOLO con JSON valido (nessun testo, nessun markdown):
+{
+  "company": "nome brand",
+  "industry": "settore",
+  "location": "città/zona",
+  "website": "url sito",
   "overallScore": <0-100>,
   "keywords": [
-    { "kw": "keyword con geo corretta", "volume": <int>, "cpc": <float>, "competition": "alta|media|bassa", "intent": "informazionale|navigazionale|commerciale|transazionale", "aiRank": "ottimo|buono|discreto|scarso", "trend": "crescita|stabile|calo", "trendData": [<12 interi realisti 10-90 che simulano il trend mensile ultimi 12 mesi, con variazioni realistiche>] }
+    { "kw": "keyword esatta", "volume": <int>, "cpc": <float>, "competition": "alta|media|bassa", "intent": "informazionale|navigazionale|commerciale|transazionale", "aiRank": "ottimo|buono|discreto|scarso", "trend": "crescita|stabile|calo", "trendData": [<12 interi 10-90 con variazioni mensili realistiche>] }
   ],
   "aiVisibility": [
-    { "source": "ChatGPT", "probability": <0-100> },
-    { "source": "Perplexity", "probability": <0-100> },
-    { "source": "Google AI Overview", "probability": <0-100> },
-    { "source": "Claude", "probability": <0-100> },
-    { "source": "Gemini", "probability": <0-100> }
+    { "source": "ChatGPT", "probability": <0-100>, "note": "breve nota 5-8 parole" },
+    { "source": "Perplexity", "probability": <0-100>, "note": "breve nota 5-8 parole" },
+    { "source": "Google AI Overview", "probability": <0-100>, "note": "breve nota 5-8 parole" },
+    { "source": "Claude", "probability": <0-100>, "note": "breve nota 5-8 parole" },
+    { "source": "Gemini", "probability": <0-100>, "note": "breve nota 5-8 parole" }
   ],
   "dimensions": [
     { "name": "Autorità dominio", "score": <0-100>, "tooltip": "spiegazione breve" },
@@ -121,34 +198,34 @@ Rispondi SOLO con JSON valido (nessun testo, nessun markdown):
     { "name": "Citazioni web", "score": <0-100>, "tooltip": "spiegazione breve" }
   ],
   "social": [
-    { "platform": "Facebook", "present": true|false, "followers": <int o null>, "active": true|false, "score": <0-100>, "note": "breve nota" },
-    { "platform": "Instagram", "present": true|false, "followers": <int o null>, "active": true|false, "score": <0-100>, "note": "breve nota" },
-    { "platform": "LinkedIn", "present": true|false, "followers": <int o null>, "active": true|false, "score": <0-100>, "note": "breve nota" },
-    { "platform": "YouTube", "present": true|false, "followers": <int o null>, "active": true|false, "score": <0-100>, "note": "breve nota" },
-    { "platform": "TikTok", "present": true|false, "followers": <int o null>, "active": true|false, "score": <0-100>, "note": "breve nota" }
+    { "platform": "Facebook", "present": true, "followers": <int o null>, "active": true, "score": <0-100>, "note": "breve nota" },
+    { "platform": "Instagram", "present": true, "followers": <int o null>, "active": true, "score": <0-100>, "note": "breve nota" },
+    { "platform": "LinkedIn", "present": false, "followers": null, "active": false, "score": <0-100>, "note": "breve nota" },
+    { "platform": "YouTube", "present": false, "followers": null, "active": false, "score": <0-100>, "note": "breve nota" },
+    { "platform": "TikTok", "present": false, "followers": null, "active": false, "score": <0-100>, "note": "breve nota" }
   ],
   "gbp": {
-    "present": true|false,
+    "present": true,
     "score": <0-100>,
-    "rating": <float 1-5 o null>,
-    "reviews": <int o null>,
-    "photosPresent": true|false,
-    "hoursPresent": true|false,
-    "postsActive": true|false,
-    "keywordsInDescription": true|false,
-    "notes": "breve analisi GBP"
+    "rating": <float 1-5>,
+    "reviews": <int>,
+    "photosPresent": true,
+    "hoursPresent": true,
+    "postsActive": false,
+    "keywordsInDescription": false,
+    "notes": "analisi GBP 1-2 frasi"
   },
   "competitors": [
-    { "name": "nome competitor", "domain": "dominio", "overallScore": <0-100>, "strengths": "punto di forza principale", "weaknesses": "punto debole principale" }
+    { "name": "nome esatto", "domain": "dominio esatto", "overallScore": <0-100>, "strengths": "punto di forza", "weaknesses": "punto debole" }
   ],
   "quickWins": [
-    { "title": "titolo azione", "effort": "basso|medio", "impact": "alto|medio", "timeframe": "giorni|settimane", "description": "spiegazione 1-2 frasi" }
+    { "title": "titolo", "effort": "basso|medio", "impact": "alto|medio", "timeframe": "giorni|settimane", "description": "1-2 frasi" }
   ],
   "recommendations": [
-    { "priority": "alta|media|bassa", "title": "titolo", "body": "spiegazione 1-2 frasi", "type": "content|technical|authority|ai|social|local" }
+    { "priority": "alta|media|bassa", "title": "titolo", "body": "1-2 frasi", "type": "content|technical|authority|ai|social|local" }
   ]
 }
-Genera esattamente ${n} keyword con geolocalizzazione corretta, 3 competitor coerenti con il tipo di business, 4 quick wins, 5 raccomandazioni. Dati realistici basati su ciò che sai del brand.`;
+Analizza ESATTAMENTE le keyword e competitor forniti. 4 quick wins, 5 raccomandazioni. Dati realistici.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -170,7 +247,7 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`\n✅ SEO AI Tool v2 avviato su http://localhost:${PORT}`);
+  console.log(`\n✅ SEO AI Tool v3 avviato su http://localhost:${PORT}`);
   console.log(`🔑 Password agenti: ${agentPassword}`);
   console.log(`🛡️  Password admin:  ${ADMIN_PASSWORD}\n`);
 });
