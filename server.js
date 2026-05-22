@@ -94,9 +94,9 @@ app.post('/api/suggest', async (req, res) => {
   const geoInstructions = {
     'comunale': `Le keyword DEVONO contenere esplicitamente il nome del COMUNE dove opera il brand (es. "ristorante Ancona", "idraulico Jesi"). Sono keyword per chi cerca quel servizio specificando il comune. Volume tipicamente basso ma conversione alta.`,
     'provinciale': `Le keyword DEVONO contenere esplicitamente il nome della PROVINCIA o città capoluogo di provincia (es. "ristorante provincia Ancona", "hotel Ancona"). Includono anche i comuni limitrofi della stessa provincia.`,
-    'multiprovinciale': `Le keyword possono contenere i nomi di più province o aree geografiche adiacenti (es. "ristorante Marche nord", "servizi Ancona Pesaro"). Coprono un bacino di più province.`,
-    'regionale': `Le keyword DEVONO contenere il nome della REGIONE (es. "ristorante Marche", "hotel costa adriatica marchigiana"). Per chi cerca a livello regionale senza specificare città.`,
-    'pluriregionale': `Le keyword coprono più regioni adiacenti (es. "ristorante centro Italia", "hotel Adriatico"). Senza geo specifica ma con targeting implicito multiregionale.`,
+    'multiprovinciale': `Le keyword coprono la provincia del brand PIÙ le province limitrofe della STESSA REGIONE e le province di confine delle REGIONI ADIACENTI. Esempio: brand ad Ancona → keyword che includono "Ancona", "Macerata", "Pesaro", "Fermo" (stessa regione Marche) e le province di confine come "Perugia" (Umbria), "Teramo" (Abruzzo), "Rimini" (Emilia-Romagna). Usa combinazioni come "servizi Ancona Macerata" o nomi delle singole province.`,
+    'regionale': `Le keyword DEVONO contenere il nome della REGIONE dove opera il brand (es. "ristorante Marche", "hotel costa adriatica marchigiana"). Per chi cerca a livello regionale senza specificare città.`,
+    'multiregionale': `Le keyword coprono la REGIONE del brand PIÙ le REGIONI GEOGRAFICAMENTE ADIACENTI. Esempio: brand nelle Marche → keyword che coprono Marche + Umbria + Abruzzo + Emilia-Romagna + Lazio (regioni confinanti). Usa riferimenti geografici macroregionali (es. "centro Italia", "adriatico", "appennino centrale") o i nomi delle singole regioni adiacenti.`,
     'nazionale': `Le keyword NON contengono riferimenti geografici. Sono keyword generiche cercate a livello nazionale (es. "ristorante pesce fresco", "hotel 4 stelle"). Il targeting geografico è solo nella campagna Google Ads, non nella keyword stessa.`,
     'internazionale': `Le keyword sono in più lingue o senza geo, per intercettare ricerche dall'estero (es. "seafood restaurant Italy", "hotel marche italy"). Utile per brand con clientela turistica internazionale.`
   };
@@ -141,11 +141,21 @@ Genera esattamente ${n * 2} keyword suggerite (il doppio di quelle richieste, ma
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await response.json();
     if (data.error) return res.status(500).json({ error: data.error.message });
-    const raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+    let raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+    // Se il JSON è troncato, prova a ripararlo
+    if (!raw.endsWith('}')) {
+      const lastBrace = raw.lastIndexOf('}');
+      if (lastBrace > 0) raw = raw.substring(0, lastBrace + 1);
+      // Chiudi array e oggetto se aperti
+      const opens = (raw.match(/\[/g)||[]).length - (raw.match(/\]/g)||[]).length;
+      for (let i = 0; i < opens; i++) raw += ']';
+      const openB = (raw.match(/\{/g)||[]).length - (raw.match(/\}/g)||[]).length;
+      for (let i = 0; i < openB; i++) raw += '}';
+    }
     res.json(JSON.parse(raw));
   } catch (err) {
     res.status(500).json({ error: 'Errore suggerimenti: ' + err.message });
@@ -163,7 +173,7 @@ app.post('/api/analyze', async (req, res) => {
   const compList = selectedCompetitors.map(c => `${c.name} (${c.domain})`).join(', ');
 
   const bizMap = { 'b2c-locale':'B2C locale', 'b2c-regionale':'B2C regionale', 'b2b-regionale':'B2B regionale/pluriregionale', 'b2b-nazionale':'B2B nazionale' };
-  const geoMap = { 'comunale':'geo comunale', 'provinciale':'geo provinciale', 'multiprovinciale':'geo multiprovinciale', 'regionale':'geo regionale', 'pluriregionale':'geo pluriregionale', 'nazionale':'nazionale senza geo', 'internazionale':'internazionale' };
+  const geoMap = { 'comunale':'geo comunale', 'provinciale':'geo provinciale', 'multiprovinciale':'geo multiprovinciale', 'regionale':'geo regionale', 'multiregionale':'geo multiregionale', 'nazionale':'nazionale senza geo', 'internazionale':'internazionale' };
 
   const prompt = `Sei un esperto SEO e digital marketing. Analizza il brand: "${company}".
 Tipo business: ${bizMap[businessType]||businessType}. Geo keyword: ${geoMap[geoType]||geoType}. Lingua: ${lang||'it'}.
@@ -231,11 +241,19 @@ Analizza ESATTAMENTE le keyword e competitor forniti. 4 quick wins, 5 raccomanda
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await response.json();
     if (data.error) return res.status(500).json({ error: data.error.message });
-    const raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+    let raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
+    if (!raw.endsWith('}')) {
+      const lastBrace = raw.lastIndexOf('}');
+      if (lastBrace > 0) raw = raw.substring(0, lastBrace + 1);
+      const opens = (raw.match(/\[/g)||[]).length - (raw.match(/\]/g)||[]).length;
+      for (let i = 0; i < opens; i++) raw += ']';
+      const openB = (raw.match(/\{/g)||[]).length - (raw.match(/\}/g)||[]).length;
+      for (let i = 0; i < openB; i++) raw += '}';
+    }
     res.json(JSON.parse(raw));
   } catch (err) {
     res.status(500).json({ error: 'Errore analisi: ' + err.message });
