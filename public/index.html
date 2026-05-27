@@ -105,8 +105,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .geo-item:hover{border-color:var(--io)}
 .geo-item.on{border-color:var(--io);background:rgba(0,174,239,0.07);font-weight:600}
 .geo-item input{accent-color:var(--io);width:15px;height:15px;flex-shrink:0;cursor:pointer}
-.kw-row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
-.kw-slider-box{flex:0 0 200px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:6px 12px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.kw-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.kw-sliders-stack{display:flex;flex-direction:column;gap:6px;flex:0 0 240px}
+.kw-slider-box{background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:5px 10px;display:flex;flex-direction:column;justify-content:center;gap:2px}
 .btn-primary{padding:13px 20px;border-radius:var(--r);border:none;background:var(--io);color:#fff;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;white-space:nowrap}
 .btn-primary:hover{opacity:.88}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
@@ -830,19 +831,21 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
             <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b">il tool suggerirà esattamente il numero di keyword e competitor richiesti. Nello step successivo potrai sempre incrementarli dinamicamente per scegliere quelli più rilevanti.</span></span>
           </div>
           <div class="kw-row">
-            <div class="kw-slider-box" id="f-kw-box">
-              <div class="kw-slider-top">
-                <span class="kw-slider-lbl">keyword da analizzare</span>
-                <span class="kw-slider-num" id="f-kw-num">5</span>
+            <div class="kw-sliders-stack">
+              <div class="kw-slider-box" id="f-kw-box">
+                <div class="kw-slider-top">
+                  <span class="kw-slider-lbl">keyword da analizzare</span>
+                  <span class="kw-slider-num" id="f-kw-num">5</span>
+                </div>
+                <input type="range" id="f-kw" class="io-range" min="1" max="30" value="5" step="1" oninput="onFormKwSlider(this.value)">
               </div>
-              <input type="range" id="f-kw" class="io-range" min="1" max="30" value="5" step="1" oninput="onFormKwSlider(this.value)">
-            </div>
-            <div class="kw-slider-box" id="f-comp-box">
-              <div class="kw-slider-top">
-                <span class="kw-slider-lbl">competitor da analizzare</span>
-                <span class="kw-slider-num" id="f-comp-num">5</span>
+              <div class="kw-slider-box" id="f-comp-box">
+                <div class="kw-slider-top">
+                  <span class="kw-slider-lbl">competitor da analizzare</span>
+                  <span class="kw-slider-num" id="f-comp-num">5</span>
+                </div>
+                <input type="range" id="f-comp" class="io-range" min="1" max="30" value="5" step="1" oninput="onFormCompSlider(this.value)">
               </div>
-              <input type="range" id="f-comp" class="io-range" min="1" max="30" value="5" step="1" oninput="onFormCompSlider(this.value)">
             </div>
             <button class="btn-primary" id="btn-suggest" onclick="runSuggest()" style="flex:1">
               <i class="ti ti-sparkles"></i>Ottieni suggerimenti keyword e competitor
@@ -2818,17 +2821,24 @@ function renderCompare(d){
     document.getElementById('compare-content').innerHTML='<div style="text-align:center;padding:3rem;color:var(--text2)"><i class="ti ti-users" style="font-size:40px;display:block;margin-bottom:10px;opacity:.3"></i>Nessun competitor disponibile per il confronto</div>';
     return;
   }
-  // Mod 2: conserva la lista completa per il rendering progressivo (3 di default + add)
+  // Mod 3: paginazione di 4 — slider sceglie la pagina (1, 2, 3...)
   window._compareAllComps=allComps;
   window._compareData=d;
-  window._compareVisibleCount=Math.min(3,allComps.length);
+  window._comparePage=1;
   _renderCompareTable();
 }
 function _renderCompareTable(){
   const d=window._compareData;
   const allComps=window._compareAllComps||[];
-  const visN=window._compareVisibleCount||3;
-  const comps=allComps.slice(0,visN);
+  // Mod 3: paginazione fissa a 4 — slider sceglie la pagina
+  const pageSize=4;
+  const totalPages=Math.max(1,Math.ceil(allComps.length/pageSize));
+  if(!window._comparePage||window._comparePage>totalPages)window._comparePage=1;
+  const curPage=window._comparePage;
+  const startIdx=(curPage-1)*pageSize;
+  const comps=allComps.slice(startIdx,startIdx+pageSize);
+  // Imposta il fill dello slider al render successivo
+  setTimeout(()=>{const sl=document.getElementById('cmp-page-slider');if(sl)setRangeFill(sl);},10);
   const socialScore=Math.round(d.social.reduce((s,p)=>s+(p.score||0),0)/Math.max(d.social.length,1));
   const gbpScore=d.gbp.present?d.gbp.score:0;
   const aiAvg=Math.round(d.aiVisibility.reduce((s,v)=>s+v.probability,0)/Math.max(d.aiVisibility.length,1));
@@ -2849,10 +2859,10 @@ function _renderCompareTable(){
     const cells=comps.map((c,ci)=>{
       const est=sp(c.overallScore,ri*100+ci*37);
       const a=arrow(row.brand,est);const ac=arrowC(row.brand,est);
-      return `<td style="padding:10px 4px;text-align:center;border-bottom:0.5px solid var(--border);width:90px;min-width:90px;max-width:90px">
-        <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px">
-          <span style="font-size:15px;font-weight:800;color:${pillColor(est)}">${est}${row.type==='pct'?'%':''}</span>
-          <span style="font-size:11px;color:${ac};font-weight:700">${a}</span>
+      return `<td style="padding:8px 3px;text-align:center;border-bottom:0.5px solid var(--border);width:75px;min-width:75px;max-width:75px;vertical-align:middle">
+        <div style="display:flex;flex-direction:column;align-items:center;line-height:1;gap:1px">
+          <span style="font-size:16px;font-weight:800;color:${pillColor(est)};line-height:1">${est}${row.type==='pct'?'%':''}</span>
+          <span style="font-size:10.5px;color:${ac};font-weight:700;line-height:1">${a} ${Math.abs(row.brand-est)}${row.type==='pct'?'%':'pt'}</span>
         </div>
       </td>`;}).join('');
     const brandDiff=row.brand;
@@ -2871,19 +2881,34 @@ function _renderCompareTable(){
     <td style="padding:12px;text-align:center;position:sticky;left:200px;background:#d4eef9;z-index:3;border-right:3px solid #00AEEF;width:90px;min-width:90px;max-width:90px;box-sizing:border-box">
       <span style="font-size:22px;font-weight:900;color:${pillColor(d.overallScore)}">${d.overallScore}</span>
     </td>
-    ${comps.map((c,ci)=>{const a=arrow(d.overallScore,c.overallScore);const ac=arrowC(d.overallScore,c.overallScore);return`<td style="padding:12px 4px;text-align:center;width:90px;min-width:90px;max-width:90px"><span style="font-size:22px;font-weight:900;color:${pillColor(c.overallScore)}">${c.overallScore}</span><div style="font-size:11px;color:${ac};font-weight:700;margin-top:2px">${a} ${Math.abs(d.overallScore-c.overallScore)}pt</div></td>`;}).join('')}
+    ${comps.map((c,ci)=>{const a=arrow(d.overallScore,c.overallScore);const ac=arrowC(d.overallScore,c.overallScore);return`<td style="padding:10px 3px;text-align:center;width:75px;min-width:75px;max-width:75px;vertical-align:middle"><div style="display:flex;flex-direction:column;align-items:center;line-height:1;gap:2px"><span style="font-size:22px;font-weight:900;color:${pillColor(c.overallScore)};line-height:1">${c.overallScore}</span><span style="font-size:11px;color:${ac};font-weight:700;line-height:1">${a} ${Math.abs(d.overallScore-c.overallScore)}pt</span></div></td>`;}).join('')}
   </tr>`;
 
   document.getElementById('compare-content').innerHTML=`
     <div style="position:relative">
-    ${window._compareVisibleCount<allComps.length?`<button onclick="addNextCompetitor()" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:7px 14px;border-radius:20px;border:0;background:var(--io);color:#fff;cursor:pointer;margin-bottom:10px;font-weight:700"><i class="ti ti-plus" style="font-size:12px"></i>Aggiungi competitor (${window._compareVisibleCount}/${allComps.length})</button>`:`<div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:7px 14px;border-radius:20px;background:var(--bg2);color:var(--text2);margin-bottom:10px;font-weight:600"><i class="ti ti-check" style="font-size:12px"></i>Tutti i ${allComps.length} competitor visibili</div>`}
+    ${(()=>{
+      const pageSize=4;
+      const totalPages=Math.max(1,Math.ceil(allComps.length/pageSize));
+      const curPage=window._comparePage||1;
+      if(allComps.length<=pageSize){
+        return `<div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:7px 14px;border-radius:20px;background:var(--bg2);color:var(--text2);margin-bottom:10px;font-weight:600"><i class="ti ti-check" style="font-size:12px"></i>Tutti i ${allComps.length} competitor visibili</div>`;
+      }
+      const startN=(curPage-1)*pageSize+1;
+      const endN=Math.min(curPage*pageSize,allComps.length);
+      return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r);padding:8px 14px">
+        <span style="font-size:11px;color:var(--text2);font-weight:600;white-space:nowrap">Mostra competitor</span>
+        <span style="font-size:13px;font-weight:800;color:var(--io);white-space:nowrap;min-width:50px">${startN}–${endN}</span>
+        <input type="range" id="cmp-page-slider" min="1" max="${totalPages}" value="${curPage}" step="1" class="io-range" style="flex:1;min-width:140px" oninput="onComparePageSlider(this.value)">
+        <span style="font-size:10px;color:var(--text3);white-space:nowrap">pagina ${curPage}/${totalPages} · ${allComps.length} totali</span>
+      </div>`;
+    })()}
     <div id="compare-table-scroll" style="overflow-x:auto;border-radius:var(--rl);border:1px solid var(--border)">
-      <table style="width:100%;border-collapse:collapse;min-width:${Math.max(450,290+comps.length*100)}px;table-layout:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:${Math.max(450,290+comps.length*85)}px;table-layout:auto">
         <thead>
           <tr style="background:var(--bg2)">
             <th style="padding:12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;position:sticky;left:0;background:var(--bg2);z-index:4;border-right:2px solid var(--border);width:200px;min-width:200px;max-width:200px;box-sizing:border-box">Dimensione</th>
             <th style="padding:12px;text-align:center;font-size:11px;font-weight:700;color:var(--io);text-transform:uppercase;position:sticky;left:200px;background:#dcf0fa;z-index:4;border-right:3px solid #00AEEF;width:90px;min-width:90px;max-width:90px;box-sizing:border-box">${d.company}<div style="font-size:9px;opacity:.7;font-weight:400;text-transform:none">(tu)</div></th>
-            ${comps.map(c=>`<th style="padding:10px 6px;text-align:center;font-size:10.5px;font-weight:600;color:var(--text2);width:90px;min-width:90px;max-width:90px;word-break:break-word;white-space:normal;line-height:1.3">${c.name}</th>`).join('')}
+            ${comps.map(c=>`<th style="padding:9px 4px;text-align:center;font-size:10px;font-weight:600;color:var(--text2);width:75px;min-width:75px;max-width:75px;word-break:break-word;white-space:normal;line-height:1.25">${c.name}</th>`).join('')}
           </tr>
         </thead>
         <tbody>${tableRows}${totalRow}</tbody>
@@ -2894,26 +2919,19 @@ function _renderCompareTable(){
       <span><span style="color:#1D9E75;font-weight:700">▲</span> vantaggio</span>
       <span><span style="color:#E24B4A;font-weight:700">▼</span> svantaggio</span>
       <span><span style="color:#888;font-weight:700">=</span> pari</span>
-      <span style="color:var(--text3)">· ${comps.length} di ${allComps.length} competitor visibili</span>
+      <span style="color:var(--text3)">· ${comps.length} su ${allComps.length} competitor in vista</span>
     </div>`;
 }
-// Mod 2: aggiunge il prossimo competitor e scrolla orizzontalmente per portarlo vicino al brand
-function addNextCompetitor(){
-  const all=window._compareAllComps||[];
-  if(window._compareVisibleCount>=all.length)return;
-  window._compareVisibleCount++;
+// Mod 3: slider paginazione tabella confronto (pagine di 4 competitor)
+function onComparePageSlider(v){
+  const newPage=Math.max(1,parseInt(v)||1);
+  if(window._comparePage===newPage)return;
+  window._comparePage=newPage;
   _renderCompareTable();
-  // Dopo il re-render, scrolla la tabella verso destra in modo che il nuovo competitor sia ben visibile
-  // accanto alla colonna sticky brand (290px = 200 dimensione + 90 brand)
+  // Riempi il fill dello slider dopo il re-render
   requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      const scroll=document.getElementById('compare-table-scroll');
-      if(scroll){
-        // Scrolla in modo che il nuovo competitor (l'ultimo a destra) sia visibile subito dopo la zona sticky
-        const newCompPos=(window._compareVisibleCount-1)*100;
-        scroll.scrollTo({left:Math.max(0,newCompPos-50),behavior:'smooth'});
-      }
-    });
+    const sl=document.getElementById('cmp-page-slider');
+    if(sl)setRangeFill(sl);
   });
 }
 
