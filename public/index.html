@@ -105,7 +105,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .geo-item:hover{border-color:var(--io)}
 .geo-item.on{border-color:var(--io);background:rgba(0,174,239,0.07);font-weight:600}
 .geo-item input{accent-color:var(--io);width:15px;height:15px;flex-shrink:0;cursor:pointer}
-.kw-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.kw-row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.kw-slider-box{flex:0 0 200px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:10px 14px;display:flex;flex-direction:column;justify-content:center;gap:8px;min-height:60px}
 .btn-primary{padding:13px 20px;border-radius:var(--r);border:none;background:var(--io);color:#fff;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;white-space:nowrap}
 .btn-primary:hover{opacity:.88}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
@@ -316,7 +317,7 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
 .io-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--io);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2);transition:transform .1s}
 .io-range::-webkit-slider-thumb:active{transform:scale(1.2)}
 .io-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--io);cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2)}
-.kw-slider-box{width:180px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:8px 12px;display:flex;flex-direction:column;justify-content:center;gap:7px;flex-shrink:0}
+/* .kw-slider-box ora definito sopra (riga 109) con flex:0 0 200px e altezza coerente */
 .kw-slider-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .kw-slider-lbl{font-size:10px;color:var(--text2);line-height:1.2}
 .kw-slider-num{font-size:18px;font-weight:800;color:var(--io);line-height:1;min-width:24px;text-align:right}
@@ -2848,7 +2849,7 @@ function _renderCompareTable(){
     const cells=comps.map((c,ci)=>{
       const est=sp(c.overallScore,ri*100+ci*37);
       const a=arrow(row.brand,est);const ac=arrowC(row.brand,est);
-      return `<td style="padding:10px 8px;text-align:center;border-bottom:0.5px solid var(--border)">
+      return `<td style="padding:10px 4px;text-align:center;border-bottom:0.5px solid var(--border);width:90px;min-width:90px;max-width:90px">
         <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px">
           <span style="font-size:15px;font-weight:800;color:${pillColor(est)}">${est}${row.type==='pct'?'%':''}</span>
           <span style="font-size:11px;color:${ac};font-weight:700">${a}</span>
@@ -2859,7 +2860,7 @@ function _renderCompareTable(){
       <td style="padding:10px 12px;font-size:12px;font-weight:600;position:sticky;left:0;background:var(--bg);z-index:3;border-right:2px solid var(--border);border-bottom:0.5px solid var(--border);width:200px;min-width:200px;max-width:200px;box-sizing:border-box;white-space:normal;word-wrap:break-word;overflow-wrap:anywhere;vertical-align:top">
         <div style="white-space:normal;word-break:break-word">${row.label}</div>${row.tip?'<div style="font-size:10px;font-weight:400;color:var(--text3);line-height:1.4;margin-top:2px;white-space:normal;word-break:break-word">'+row.tip+'</div>':''}
       </td>
-      <td style="padding:10px 8px;text-align:center;position:sticky;left:200px;background:#e8f6fc;z-index:3;border-right:2px solid rgba(0,174,239,0.2);border-bottom:0.5px solid var(--border);width:90px;min-width:90px;max-width:90px;box-sizing:border-box">
+      <td style="padding:10px 8px;text-align:center;position:sticky;left:200px;background:#e8f6fc;z-index:3;border-right:3px solid #00AEEF;border-bottom:0.5px solid var(--border);width:90px;min-width:90px;max-width:90px;box-sizing:border-box">
         <span style="font-size:16px;font-weight:800;color:${pillColor(brandDiff)}">${brandDiff}${row.type==='pct'?'%':''}</span>
       </td>
       ${cells}
@@ -2867,22 +2868,22 @@ function _renderCompareTable(){
 
   const totalRow=`<tr style="background:var(--bg2)">
     <td style="padding:12px;font-weight:700;font-size:13px;position:sticky;left:0;background:var(--bg2);z-index:3;border-right:2px solid var(--border);width:200px;min-width:200px;max-width:200px;box-sizing:border-box">PUNTEGGIO TOTALE</td>
-    <td style="padding:12px;text-align:center;position:sticky;left:200px;background:#d4eef9;z-index:3;border-right:2px solid rgba(0,174,239,0.3);width:90px;min-width:90px;max-width:90px;box-sizing:border-box">
+    <td style="padding:12px;text-align:center;position:sticky;left:200px;background:#d4eef9;z-index:3;border-right:3px solid #00AEEF;width:90px;min-width:90px;max-width:90px;box-sizing:border-box">
       <span style="font-size:22px;font-weight:900;color:${pillColor(d.overallScore)}">${d.overallScore}</span>
     </td>
-    ${comps.map((c,ci)=>{const a=arrow(d.overallScore,c.overallScore);const ac=arrowC(d.overallScore,c.overallScore);return`<td style="padding:12px;text-align:center"><span style="font-size:22px;font-weight:900;color:${pillColor(c.overallScore)}">${c.overallScore}</span><div style="font-size:11px;color:${ac};font-weight:700;margin-top:2px">${a} ${Math.abs(d.overallScore-c.overallScore)}pt</div></td>`;}).join('')}
+    ${comps.map((c,ci)=>{const a=arrow(d.overallScore,c.overallScore);const ac=arrowC(d.overallScore,c.overallScore);return`<td style="padding:12px 4px;text-align:center;width:90px;min-width:90px;max-width:90px"><span style="font-size:22px;font-weight:900;color:${pillColor(c.overallScore)}">${c.overallScore}</span><div style="font-size:11px;color:${ac};font-weight:700;margin-top:2px">${a} ${Math.abs(d.overallScore-c.overallScore)}pt</div></td>`;}).join('')}
   </tr>`;
 
   document.getElementById('compare-content').innerHTML=`
     <div style="position:relative">
     ${window._compareVisibleCount<allComps.length?`<button onclick="addNextCompetitor()" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:7px 14px;border-radius:20px;border:0;background:var(--io);color:#fff;cursor:pointer;margin-bottom:10px;font-weight:700"><i class="ti ti-plus" style="font-size:12px"></i>Aggiungi competitor (${window._compareVisibleCount}/${allComps.length})</button>`:`<div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:7px 14px;border-radius:20px;background:var(--bg2);color:var(--text2);margin-bottom:10px;font-weight:600"><i class="ti ti-check" style="font-size:12px"></i>Tutti i ${allComps.length} competitor visibili</div>`}
     <div id="compare-table-scroll" style="overflow-x:auto;border-radius:var(--rl);border:1px solid var(--border)">
-      <table style="width:100%;border-collapse:collapse;min-width:${Math.max(500,290+comps.length*130)}px;table-layout:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:${Math.max(450,290+comps.length*100)}px;table-layout:auto">
         <thead>
           <tr style="background:var(--bg2)">
             <th style="padding:12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;position:sticky;left:0;background:var(--bg2);z-index:4;border-right:2px solid var(--border);width:200px;min-width:200px;max-width:200px;box-sizing:border-box">Dimensione</th>
-            <th style="padding:12px;text-align:center;font-size:11px;font-weight:700;color:var(--io);text-transform:uppercase;position:sticky;left:200px;background:#dcf0fa;z-index:4;border-right:2px solid rgba(0,174,239,0.2);width:90px;min-width:90px;max-width:90px;box-sizing:border-box">${d.company}<div style="font-size:9px;opacity:.7;font-weight:400;text-transform:none">(tu)</div></th>
-            ${comps.map(c=>`<th style="padding:12px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--text2);min-width:110px;word-break:break-word;line-height:1.3">${c.name}</th>`).join('')}
+            <th style="padding:12px;text-align:center;font-size:11px;font-weight:700;color:var(--io);text-transform:uppercase;position:sticky;left:200px;background:#dcf0fa;z-index:4;border-right:3px solid #00AEEF;width:90px;min-width:90px;max-width:90px;box-sizing:border-box">${d.company}<div style="font-size:9px;opacity:.7;font-weight:400;text-transform:none">(tu)</div></th>
+            ${comps.map(c=>`<th style="padding:10px 6px;text-align:center;font-size:10.5px;font-weight:600;color:var(--text2);width:90px;min-width:90px;max-width:90px;word-break:break-word;white-space:normal;line-height:1.3">${c.name}</th>`).join('')}
           </tr>
         </thead>
         <tbody>${tableRows}${totalRow}</tbody>
@@ -2909,7 +2910,7 @@ function addNextCompetitor(){
       const scroll=document.getElementById('compare-table-scroll');
       if(scroll){
         // Scrolla in modo che il nuovo competitor (l'ultimo a destra) sia visibile subito dopo la zona sticky
-        const newCompPos=(window._compareVisibleCount-1)*130;
+        const newCompPos=(window._compareVisibleCount-1)*100;
         scroll.scrollTo({left:Math.max(0,newCompPos-50),behavior:'smooth'});
       }
     });
@@ -3058,14 +3059,17 @@ function renderScoreCard(d){
     '<div style="background:var(--bg);border-radius:var(--rl);border:0.5px solid var(--border);padding:1.25rem">'+
     '<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Dettaglio dimensioni SEO</div>'+
     '<div style="display:flex;flex-direction:column;gap:7px">'+
-    d.dimensions.slice().sort((a,b)=>a.score-b.score).map(item=>
-      '<div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:var(--bg2);border-radius:var(--r);border-left:3px solid '+scC(item.score)+'">'+
+    d.dimensions.slice().sort((a,b)=>a.score-b.score).map(item=>{
+      const dimTipsMap={'autorita dominio':'misura quanto il dominio è autorevole per Google: backlink, età, qualità dei link in entrata.','presenza brand':'riconoscibilità online del brand: menzioni, ricerche branded, directory di settore.','contenuto ai-friendly':'struttura dei contenuti ottimizzata per essere citata da ChatGPT, Perplexity, Google AI.','e-e-a-t':'Experience, Expertise, Authoritativeness, Trustworthiness — criteri di qualità Google per i contenuti.','schema markup':'dati strutturati JSON-LD che aiutano Google e i motori AI a interpretare i contenuti del sito.','citazioni web':'frequenza di citazione del brand su siti esterni, directory, portali di settore.'};
+      const tip=item.tooltip||dimTipsMap[item.name.toLowerCase()]||'';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:var(--bg2);border-radius:var(--r);border-left:3px solid '+scC(item.score)+'">'+
       '<span style="width:9px;height:9px;border-radius:50%;background:'+scC(item.score)+';flex-shrink:0"></span>'+
-      '<span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0">'+item.name+'</span>'+
+      '<span style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;display:flex;align-items:center;gap:5px">'+item.name+(tip?' <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b">'+tip.replace(/"/g,'&quot;')+'</span></span>':'')+'</span>'+
       '<div style="flex:1.2;max-width:160px;background:var(--border2);border-radius:3px;height:5px;overflow:hidden"><div style="width:'+item.score+'%;height:100%;background:'+scC(item.score)+';border-radius:3px"></div></div>'+
       '<span style="font-size:13px;font-weight:800;color:'+scC(item.score)+';min-width:48px;text-align:right">'+item.score+'<span style="font-size:9px;opacity:.6">/100</span></span>'+
       '<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:'+scB(item.score)+';color:'+scF(item.score)+';font-weight:700;text-transform:uppercase;min-width:74px;text-align:center">'+scL(item.score)+'</span>'+
-      '</div>').join('')+
+      '</div>';
+    }).join('')+
     '</div></div>'+
     // Sezione spiegazione per il cliente
     '<div style="margin-top:1.25rem;border-top:0.5px solid var(--border);padding-top:1.25rem">'+
