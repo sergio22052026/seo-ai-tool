@@ -1192,7 +1192,7 @@ function navPush(state){if(navPos<navHistory.length-1)navHistory.splice(navPos+1
 function navBack(){if(navPos<=0)return;navPos--;applyNavState(navHistory[navPos]);updateNavBtns();}
 function navForward(){if(navPos>=navHistory.length-1)return;navPos++;applyNavState(navHistory[navPos]);updateNavBtns();}
 function updateNavBtns(){const bb=document.getElementById('nav-back-btn');const fb=document.getElementById('nav-fwd-btn');if(bb)bb.style.display=navPos>0?'block':'none';if(fb)fb.style.display=navPos<navHistory.length-1?'block':'none';}
-function applyNavState(state){if(!state)return;if(state.view==='form'){resetToForm(false);}else if(state.view==='select'){document.getElementById('step-form').style.display='none';document.getElementById('step-select').style.display='block';navPush({view:'select'});}else if(state.view==='results'&&state.data){currentData=state.data;renderResults(state.data);document.getElementById('results').style.display='block';navPush({view:'results',data:currentData});document.getElementById('step-form').style.display='none';document.getElementById('step-select').style.display='none';}}
+function applyNavState(state){if(!state)return;if(state.view==='form'){resetToForm(false);}else if(state.view==='select'){document.getElementById('step-form').style.display='none';document.getElementById('step-select').style.display='block';navPush({view:'select'});}else if(state.view==='results'&&state.data){currentData=state.data;renderResults(state.data);document.getElementById('results').style.display='block';navPush({view:'results',data:currentData});document.getElementById('step-form').style.display='none';document.getElementById('step-select').style.display='none';window.scrollTo({top:0,behavior:'instant'});}}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on')}
 
 // Tooltip handler - works on static and dynamic elements
@@ -2648,6 +2648,8 @@ async function runAnalysis(){
       document.querySelector('.card-form').style.display='block';
       document.getElementById('error-msg').textContent='Errore: '+data.error;document.getElementById('error-msg').style.display='block';document.getElementById('step-select').style.display='block';document.getElementById('step-form').style.display='none';return;}
     currentData=data;renderResults(data);
+    // Mod 3: forza scroll in cima dopo analisi completata
+    window.scrollTo({top:0,behavior:'instant'});
   }catch(e){
     document.querySelector('.card-form').style.display='block';
     clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;document.getElementById('error-msg').textContent='Errore di connessione. Se è la prima richiesta, il server si sta avviando: attendi 30-60 secondi e riprova.';document.getElementById('error-msg').style.display='block';document.getElementById('step-select').style.display='block';document.getElementById('step-form').style.display='none';}
@@ -2790,7 +2792,8 @@ function loadFromHistory(id,mode){
   const newBtn=document.getElementById('new-analysis-btn');if(newBtn)newBtn.style.display='flex';
   const backBtn=document.getElementById('back-select-btn');if(backBtn)backBtn.style.display='none';
   renderResults(entry.snapshot);
-  window.scrollTo(0,0);
+  // Mod 3: forza scroll in cima dopo loadFromHistory
+  window.scrollTo({top:0,behavior:'instant'});
 }
 function deleteHistory(e,id,mode){
   if(e)e.stopPropagation();if(userRole!=='admin')return;
@@ -2809,11 +2812,22 @@ function copyProposal(){const text=document.getElementById('proposal-text').inne
 // ── ADVANCED RENDERS ─────────────────────────────────
 function renderCompare(d){
   // Only show competitors that have real data (overallScore > 0)
-  const comps=d.competitors.filter(c=>c.overallScore&&c.overallScore>0);
-  if(!comps.length){
+  const allComps=d.competitors.filter(c=>c.overallScore&&c.overallScore>0).sort((a,b)=>b.overallScore-a.overallScore);
+  if(!allComps.length){
     document.getElementById('compare-content').innerHTML='<div style="text-align:center;padding:3rem;color:var(--text2)"><i class="ti ti-users" style="font-size:40px;display:block;margin-bottom:10px;opacity:.3"></i>Nessun competitor disponibile per il confronto</div>';
     return;
   }
+  // Mod 2: conserva la lista completa per il rendering progressivo (3 di default + add)
+  window._compareAllComps=allComps;
+  window._compareData=d;
+  window._compareVisibleCount=Math.min(3,allComps.length);
+  _renderCompareTable();
+}
+function _renderCompareTable(){
+  const d=window._compareData;
+  const allComps=window._compareAllComps||[];
+  const visN=window._compareVisibleCount||3;
+  const comps=allComps.slice(0,visN);
   const socialScore=Math.round(d.social.reduce((s,p)=>s+(p.score||0),0)/Math.max(d.social.length,1));
   const gbpScore=d.gbp.present?d.gbp.score:0;
   const aiAvg=Math.round(d.aiVisibility.reduce((s,v)=>s+v.probability,0)/Math.max(d.aiVisibility.length,1));
@@ -2842,8 +2856,8 @@ function renderCompare(d){
       </td>`;}).join('');
     const brandDiff=row.brand;
     return `<tr style="transition:background .15s" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-      <td style="padding:10px 12px;font-size:12px;font-weight:600;position:sticky;left:0;background:var(--bg);z-index:3;border-right:2px solid var(--border);border-bottom:0.5px solid var(--border);width:200px;min-width:200px;max-width:200px;box-sizing:border-box;overflow:hidden;word-wrap:break-word;overflow-wrap:anywhere">
-        <div>${row.label}</div>${row.tip?'<div style="font-size:10px;font-weight:400;color:var(--text3);line-height:1.4;margin-top:2px">'+row.tip+'</div>':''}
+      <td style="padding:10px 12px;font-size:12px;font-weight:600;position:sticky;left:0;background:var(--bg);z-index:3;border-right:2px solid var(--border);border-bottom:0.5px solid var(--border);width:200px;min-width:200px;max-width:200px;box-sizing:border-box;white-space:normal;word-wrap:break-word;overflow-wrap:anywhere;vertical-align:top">
+        <div style="white-space:normal;word-break:break-word">${row.label}</div>${row.tip?'<div style="font-size:10px;font-weight:400;color:var(--text3);line-height:1.4;margin-top:2px;white-space:normal;word-break:break-word">'+row.tip+'</div>':''}
       </td>
       <td style="padding:10px 8px;text-align:center;position:sticky;left:200px;background:#e8f6fc;z-index:3;border-right:2px solid rgba(0,174,239,0.2);border-bottom:0.5px solid var(--border);width:90px;min-width:90px;max-width:90px;box-sizing:border-box">
         <span style="font-size:16px;font-weight:800;color:${pillColor(brandDiff)}">${brandDiff}${row.type==='pct'?'%':''}</span>
@@ -2861,9 +2875,8 @@ function renderCompare(d){
 
   document.getElementById('compare-content').innerHTML=`
     <div style="position:relative">
-    <button onclick="toggleCompareTable()" style="display:flex;align-items:center;gap:6px;font-size:11px;padding:6px 12px;border-radius:20px;border:0.5px solid var(--io);background:transparent;color:var(--io);cursor:pointer;margin-bottom:8px"><i class="ti ti-table" style="font-size:12px"></i><span id="compare-toggle-label">Mostra tabella completa</span></button>
-    <div id="compare-table-inner" style="overflow:hidden;max-height:0;transition:max-height 0.4s ease;border-radius:var(--rl);border:1px solid var(--border)">
-    <div style="overflow-x:auto">
+    ${window._compareVisibleCount<allComps.length?`<button onclick="addNextCompetitor()" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:7px 14px;border-radius:20px;border:0;background:var(--io);color:#fff;cursor:pointer;margin-bottom:10px;font-weight:700"><i class="ti ti-plus" style="font-size:12px"></i>Aggiungi competitor (${window._compareVisibleCount}/${allComps.length})</button>`:`<div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:7px 14px;border-radius:20px;background:var(--bg2);color:var(--text2);margin-bottom:10px;font-weight:600"><i class="ti ti-check" style="font-size:12px"></i>Tutti i ${allComps.length} competitor visibili</div>`}
+    <div id="compare-table-scroll" style="overflow-x:auto;border-radius:var(--rl);border:1px solid var(--border)">
       <table style="width:100%;border-collapse:collapse;min-width:${Math.max(500,290+comps.length*130)}px;table-layout:auto">
         <thead>
           <tr style="background:var(--bg2)">
@@ -2875,21 +2888,32 @@ function renderCompare(d){
         <tbody>${tableRows}${totalRow}</tbody>
       </table>
     </div>
-    </div></div>
+    </div>
     <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text2);flex-wrap:wrap">
       <span><span style="color:#1D9E75;font-weight:700">▲</span> vantaggio</span>
       <span><span style="color:#E24B4A;font-weight:700">▼</span> svantaggio</span>
       <span><span style="color:#888;font-weight:700">=</span> pari</span>
-      <span style="color:var(--text3)">· ${comps.length} competitor con dati disponibili</span>
+      <span style="color:var(--text3)">· ${comps.length} di ${allComps.length} competitor visibili</span>
     </div>`;
 }
-function toggleCompareTable(){
-  const inner=document.getElementById('compare-table-inner');
-  const label=document.getElementById('compare-toggle-label');
-  if(!inner)return;
-  const isOpen=inner.style.maxHeight&&inner.style.maxHeight!=='0px';
-  inner.style.maxHeight=isOpen?'0px':'800px';
-  if(label)label.textContent=isOpen?'Mostra tabella completa':'Nascondi tabella';
+// Mod 2: aggiunge il prossimo competitor e scrolla orizzontalmente per portarlo vicino al brand
+function addNextCompetitor(){
+  const all=window._compareAllComps||[];
+  if(window._compareVisibleCount>=all.length)return;
+  window._compareVisibleCount++;
+  _renderCompareTable();
+  // Dopo il re-render, scrolla la tabella verso destra in modo che il nuovo competitor sia ben visibile
+  // accanto alla colonna sticky brand (290px = 200 dimensione + 90 brand)
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      const scroll=document.getElementById('compare-table-scroll');
+      if(scroll){
+        // Scrolla in modo che il nuovo competitor (l'ultimo a destra) sia visibile subito dopo la zona sticky
+        const newCompPos=(window._compareVisibleCount-1)*130;
+        scroll.scrollTo({left:Math.max(0,newCompPos-50),behavior:'smooth'});
+      }
+    });
+  });
 }
 
 
