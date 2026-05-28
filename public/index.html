@@ -105,8 +105,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .geo-item:hover{border-color:var(--io)}
 .geo-item.on{border-color:var(--io);background:rgba(0,174,239,0.07);font-weight:600}
 .geo-item input{accent-color:var(--io);width:15px;height:15px;flex-shrink:0;cursor:pointer}
-.kw-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-start}
-.kw-slider-box{flex:0 0 220px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:5px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.kw-row{display:flex;gap:10px;align-items:center;flex-wrap:nowrap;justify-content:flex-start}
+.kw-slider-box{flex:0 0 130px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:5px 10px;display:flex;flex-direction:column;justify-content:center;gap:2px}
 .btn-primary{padding:13px 20px;border-radius:var(--r);border:none;background:var(--io);color:#fff;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;white-space:nowrap}
 .btn-primary:hover{opacity:.88}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
@@ -833,20 +833,20 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
           <div class="kw-row">
             <div class="kw-slider-box" id="f-kw-box">
               <div class="kw-slider-top">
-                <span class="kw-slider-lbl">keyword da analizzare</span>
+                <span class="kw-slider-lbl">keyword</span>
                 <span class="kw-slider-num" id="f-kw-num">5</span>
               </div>
               <input type="range" id="f-kw" class="io-range" min="1" max="30" value="5" step="1" oninput="onFormKwSlider(this.value)">
             </div>
             <div class="kw-slider-box" id="f-comp-box">
               <div class="kw-slider-top">
-                <span class="kw-slider-lbl">competitor da analizzare</span>
+                <span class="kw-slider-lbl">competitor</span>
                 <span class="kw-slider-num" id="f-comp-num">5</span>
               </div>
               <input type="range" id="f-comp" class="io-range" min="1" max="30" value="5" step="1" oninput="onFormCompSlider(this.value)">
             </div>
-            <button class="btn-primary" id="btn-suggest" onclick="runSuggest()" style="flex:1">
-              <i class="ti ti-sparkles"></i>Ottieni suggerimenti keyword e competitor
+            <button class="btn-primary" id="btn-suggest" onclick="runSuggest()" style="flex:1;min-width:0;white-space:nowrap">
+              <i class="ti ti-sparkles"></i>Suggerimenti
             </button>
           </div>
         </div>
