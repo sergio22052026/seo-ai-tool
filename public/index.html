@@ -673,7 +673,7 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
     </div>
     <!-- TESTO CENTRATO -->
     <div class="topbar-center">
-      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.6.6.23.47</span></div>
+      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.7.6.01.01</span></div>
       <div class="topbar-sub">Tool di analisi digitale per PMI · © 2026</div>
     </div>
     <div class="topbar-right">
@@ -983,7 +983,7 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
             <button class="add-btn" onclick="toggleManualComp()" style="font-size:11px;padding:5px 10px">+ Aggiungi manuale</button>
           </div>
         </div>
-        <p class="step-desc" style="font-size:12px;color:var(--text2);margin-bottom:10px">Scegli i competitor da includere nell'analisi.</p>
+        <p class="step-desc" style="font-size:12px;color:var(--text2);margin-bottom:10px">Hai richiesto <strong id="comp-target">5</strong> competitor — seleziona quelli che preferisci tra i suggerimenti.</p>
         <!-- Filtri competitor (2 righe centrate) -->
         <div class="sel-filters-row" style="display:flex;justify-content:center;gap:6px;margin-bottom:6px">
           <button class="sel-filter-btn" onclick="compSelectAll()"><i class="ti ti-check-all" style="font-size:11px;margin-right:3px"></i>Seleziona tutto</button>
@@ -1103,9 +1103,10 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
             <th style="width:34%;overflow:visible">Keyword</th>
             <th style="width:12%;overflow:visible">Vol./mese <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down">ricerche mensili medie su Google.</span></span></th>
             <th style="width:11%;overflow:visible">CPC € <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down">costo Per Click medio su Google Ads.</span></span></th>
-            <th style="width:11%;overflow:visible">Comp. <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down">livello di competizione tra inserzionisti.</span></span></th>
-            <th style="width:12%;overflow:visible">AI rank <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down">probabilità di essere citato dai motori AI.</span></span></th>
-            <th style="width:20%;overflow:visible">Trend <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down tt-right">previsione della domanda per i prossimi mesi, combinando la tendenza recente e la stagionalità tipica della keyword. La freccia indica se le ricerche sono attese in salita, stabili o in calo. È una stima di tendenza (non una previsione certa) utile a capire se è il momento di investire per intercettare la domanda.</span></span></th>
+            <th style="width:11%;overflow:visible">Fonte <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down">origine di volume e CPC: dato reale (DataForSEO) o stima AI.</span></span></th>
+            <th style="width:10%;overflow:visible">Comp. <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down">livello di competizione tra inserzionisti.</span></span></th>
+            <th style="width:10%;overflow:visible">AI rank <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down">probabilità di essere citato dai motori AI.</span></span></th>
+            <th style="width:18%;overflow:visible">Trend <span class="tt-wrap"><i class="tt-i">i</i><span class="tt-b tt-down tt-right">previsione della domanda per i prossimi mesi, combinando la tendenza recente e la stagionalità tipica della keyword. La freccia indica se le ricerche sono attese in salita, stabili o in calo. È una stima di tendenza (non una previsione certa) utile a capire se è il momento di investire per intercettare la domanda.</span></span></th>
           </tr></thead><tbody id="kw-body"></tbody></table>
           </div>
         </div>
@@ -1117,6 +1118,7 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
             <div class="tab-intro-t"><i class="ti ti-trending-up"></i>L'andamento della domanda</div>
             <div class="tab-intro-d">Per ogni keyword analizzata vedi come è cambiato nel tempo l'interesse di ricerca. I riquadri <b>evidenziati in verde</b> sono le ricerche la cui domanda è prevista <b>in crescita nei prossimi mesi</b>: sono le opportunità più calde, quelle su cui conviene farsi trovare adesso per intercettare la domanda mentre sale.</div>
           </div>
+          <div id="trends-source-note" style="margin-bottom:10px"></div>
           <div class="trends-grid" id="trends-grid"></div>
         </div>
       </div>
@@ -1125,7 +1127,7 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
         <div class="card">
           <div class="tab-intro">
             <div class="tab-intro-t"><i class="ti ti-brain"></i>La visibilità nei motori AI</div>
-            <div class="tab-intro-d">Sempre più persone cercano direttamente su ChatGPT, Google AI Overview, Gemini, Perplexity e Claude invece che sui risultati classici. Qui misuriamo quanto il brand viene <b>citato come risposta</b> da questi assistenti sulle keyword analizzate: dove oggi è poco citato, sono i competitor a comparire al suo posto.</div>
+            <div class="tab-intro-d">Sempre più persone cercano direttamente su ChatGPT, Google AI Overview, Gemini, Perplexity e Claude invece che sui risultati classici. Qui misuriamo quanto il brand viene <b>citato come risposta</b> da questi assistenti. Per <b>Google AI Overview e Perplexity</b> il dato è <b>reale</b> (verifica della presenza del sito tra le fonti dei primi risultati); per <b>ChatGPT, Claude e Gemini</b> è una <b>stima</b>, perché non espongono dati pubblici di citazione. Trovi i due indici distinti — reale e stimato — qui sotto.</div>
           </div>
           <div id="ai-rows"></div>
         </div>
@@ -1168,6 +1170,8 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
           </div>
         </div>
       </div>
+
+      <div class="panel" id="p-gbp">
         <div class="card">
           <div class="tab-intro">
             <div class="tab-intro-t"><i class="ti ti-map-pin"></i>La scheda Google Business Profile</div>
@@ -1289,7 +1293,7 @@ let trendCharts = [];
 window._trendChartInstances={};
 
 // Mod: versione app per indicatore deploy
-const APP_VERSION='v.6.6.23.47';
+const APP_VERSION='v.7.6.01.01';
 // Mod: refresh forzato ignorando cache (aggiunge timestamp all'URL)
 function hardRefresh(){
   const u=new URL(window.location.href);
@@ -1313,7 +1317,7 @@ function cancelLoading(){
 // Mod: disegna/ridisegna il grafico trend di una keyword (chiamato anche dopo fix outlier)
 function _drawTrendChart(idx,aiRank){
   const ctx=document.getElementById('tc-'+idx);if(!ctx)return;
-  const months=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const months=(window._trendMonths&&window._trendMonths.length)?window._trendMonths:['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
   const td=(window._trendData&&window._trendData[idx])?window._trendData[idx].data:Array(12).fill(50);
   const mn=Math.min(...td),mx=Math.max(...td);
   const yMin=Math.max(0,Math.floor(mn/10)*10),yMax=Math.min(100,Math.ceil(mx/10)*10+5);
@@ -1822,11 +1826,18 @@ function clearFormFields(){
   const preview=document.getElementById('site-preview');if(preview)preview.style.display='none';
 }
 
-// Mod 16b: Nuova analisi — mantiene i parametri dell'ultimo inserimento già compilati
+// Mod 110 (rev8): Nuova analisi — i campi geografici (regione/provincia/comune) si svuotano
+// del tutto, così non restano dati vecchi e il comune non resta agganciato a una provincia non più valida.
 function newAnalysis(){
   resetToForm();
-  // I campi del form restano popolati nel DOM (sito, settore, regione, provincia, comune, tipo, slider):
-  // non li tocchiamo, così l'agente riparte dagli stessi parametri.
+  ['f-reg','f-reg-input','f-prov','f-prov-input','f-comune','f-comune-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const provInp=document.getElementById('f-prov-input');if(provInp)provInp.disabled=false;
+  const comInp=document.getElementById('f-comune-input');if(comInp){comInp.disabled=true;comInp.placeholder='Prima seleziona la provincia';}
+  // reset selezione aree/visibilità geografica collegata
+  document.querySelectorAll('#rilevanza-grid input:checked').forEach(c=>c.checked=false);
+  const gsw=document.getElementById('geo-selector-wrap');if(gsw)gsw.style.display='none';
+  geoSelectedAreas=[];window._geoVals=null;window._geoNearby=null;
+  if(typeof updateVisiblita==='function'){try{updateVisiblita();}catch(e){}}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -2592,6 +2603,17 @@ async function exportPDF(silent){
       pdf.setTextColor(...tC);pdf.setFontSize(7.5);pdf.text(tTxt,kx[5],y+2);
       y+=7;
     });
+    y+=4;
+    // Mod 111 (rev8): nota fonte dati volume/CPC nel PDF
+    (function(){
+      const ks=(d.keywords||[]);const real=ks.filter(k=>k.dataSource==='dataforseo').length;
+      let nota;
+      if(real===0) nota='Volume e CPC: stime AI (mercato Italia), non da fonte ufficiale.';
+      else if(real===ks.length) nota='Volume e CPC: dati reali DataForSEO (Google Ads, Italia).';
+      else nota='Volume e CPC: '+real+'/'+ks.length+' keyword con dato reale DataForSEO, le restanti stima AI.';
+      pdf.setTextColor(...SLATE);pdf.setFontSize(6.8);pdf.setFont('helvetica','italic');
+      pdf.text(pdf.splitTextToSize(nota,CW-4),M,y);pdf.setFont('helvetica','normal');
+    })();
     y+=6;
 
     // ═══════════════ PAG 4: OPPORTUNITA + COMPETITOR ═══════════════
@@ -3415,18 +3437,25 @@ async function runSuggest(){
     clearInterval(iv);sugTimerH.stop();setTimeout(()=>{document.getElementById('loading').style.display='none';},300);document.getElementById('btn-suggest').disabled=false;
     if(r.status===401){doLogout();return;}
     if(data.error){document.getElementById('error-msg').textContent='Errore: '+data.error;document.getElementById('error-msg').style.display='block';return;}
-    suggestData=data;renderSelectionStep(data,parseInt(kwCount));
+    suggestData=data;renderSelectionStep(data,parseInt(kwCount),parseInt(compCount)||5);
   }catch(e){
     clearInterval(iv);sugTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;
     if(e.name==='AbortError'){return;} // interruzione volontaria: torno al form senza errori
     document.getElementById('error-msg').textContent='⚠️ Errore di connessione. Se è la prima richiesta del giorno, il server si sta avviando: attendi 30-60 secondi e riprova.';document.getElementById('error-msg').style.display='block';
   }
 }
-function renderSelectionStep(d,kwTarget){
+// Mod 111/114 (rev8): badge fonte dato (DataForSEO reale vs stima AI), riusato ovunque ci siano volume/CPC.
+function srcTag(ds){
+  if(ds==='dataforseo') return '<span title="Volume e CPC reali da DataForSEO (Google Ads, Italia)" style="font-size:8.5px;font-weight:700;color:#1D9E75;background:rgba(29,158,117,0.12);padding:1px 6px;border-radius:7px;white-space:nowrap">dato reale · DataForSEO</span>';
+  return '<span title="Volume e CPC stimati dall\'AI, non da fonte ufficiale" style="font-size:8.5px;font-weight:600;color:#BA7517;background:rgba(186,117,23,0.12);padding:1px 6px;border-radius:7px;white-space:nowrap">stima</span>';
+}
+function renderSelectionStep(d,kwTarget,compTarget){
   document.getElementById('step-form').style.display='none';document.getElementById('step-select').style.display='block';
   // Scroll in cima
   window.scrollTo({top:0,behavior:'smooth'});
-  document.getElementById('kw-target').textContent=kwTarget;selectedKws=[];selectedComps=[];
+  document.getElementById('kw-target').textContent=kwTarget;
+  const ct=document.getElementById('comp-target');if(ct)ct.textContent=(compTarget!=null?compTarget:5);
+  selectedKws=[];selectedComps=[];
   suggestedKws=d.suggestedKeywords||[];
   suggestedComps=d.suggestedCompetitors||[];
   const kwCb={alta:'b-red',media:'b-amber',bassa:'b-green'};
@@ -3435,7 +3464,7 @@ function renderSelectionStep(d,kwTarget){
     <div class="sel-item" id="kwi-${i}" data-idx="${i}" data-volume="${k.volume||0}" data-reason="${(k.reason||'').replace(/"/g,'&quot;')}" onclick="toggleKw(${i})">
       <input type="checkbox" id="kwc-${i}" onchange="toggleKw(${i})" onclick="event.stopPropagation()">
       <div style="flex:1"><div class="sel-item-title">${k.kw}<span class="sel-badge ${kwCb[k.competition]||'b-amber'}">${k.competition}</span></div>
-      <div class="sel-item-sub">Vol. ~${(k.volume||0).toLocaleString('it-IT')}/mese · CPC €${(k.cpc||0).toFixed(2)} · ${k.reason||''}</div></div>
+      <div class="sel-item-sub">Vol. ~${(k.volume||0).toLocaleString('it-IT')}/mese · CPC €${(k.cpc||0).toFixed(2)} · ${k.reason||''} ${srcTag(k.dataSource)}</div></div>
     </div>`).join('');
   document.getElementById('comp-list-sel').innerHTML=suggestedComps.map((c,i)=>`
     <div class="sel-item" id="compi-${i}" data-idx="${i}" data-score="${c.estimatedScore||c.overallScore||0}" data-reason="${(c.reason||'').replace(/"/g,'&quot;')}" onclick="toggleComp(${i})">
@@ -3458,7 +3487,7 @@ function renderSelectionStep(d,kwTarget){
 }
 function toggleKw(i){const item=document.getElementById('kwi-'+i);const cb=document.getElementById('kwc-'+i);const sel=item.classList.toggle('selected');cb.checked=sel;if(sel)selectedKws.push(suggestData.suggestedKeywords[i]);else selectedKws=selectedKws.filter(k=>k.kw!==suggestData.suggestedKeywords[i].kw);updateCounts();}
 function toggleComp(i){const item=document.getElementById('compi-'+i);const cb=document.getElementById('compc-'+i);const sel=item.classList.toggle('selected');cb.checked=sel;if(sel)selectedComps.push(suggestData.suggestedCompetitors[i]);else selectedComps=selectedComps.filter(c=>c.name!==suggestData.suggestedCompetitors[i].name);updateCounts();}
-function updateCounts(){document.getElementById('kw-count-badge').textContent=selectedKws.length+' selezionate';document.getElementById('comp-count-badge').textContent=selectedComps.length+' selezionati';}
+function updateCounts(){document.getElementById('kw-count-badge').innerHTML='<b>'+selectedKws.length+'</b> selezionate';document.getElementById('comp-count-badge').innerHTML='<b>'+selectedComps.length+'</b> selezionati';}
 function toggleManualKw(){manualKwVisible=!manualKwVisible;document.getElementById('manual-kw-row').style.display=manualKwVisible?'block':'none';}
 function toggleManualComp(){manualCompVisible=!manualCompVisible;document.getElementById('manual-comp-row').style.display=manualCompVisible?'block':'none';}
 function fetchManualKwData(){
@@ -4303,7 +4332,7 @@ function renderEconomics(d){
   // Il TOTALE resta la somma di tutte e tre le leve (invariato): l'AI guida la presentazione, non indebolisce i numeri.
   html+='<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:6px"><i class="ti ti-target-arrow" style="color:var(--green)"></i>Leve con impatto misurabile sulle vendite</div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'+
-      leverCard('ti-robot','var(--io)','rgba(0,174,239,0.07)','SEO AI','Citazioni nei motori AI (ChatGPT, Google AI Overview, Gemini, Perplexity, Claude) sulle keyword oggi deboli (come nella tab AI Presence). È il canale che cresce più in fretta.',aiSales,
+      leverCard('ti-robot','var(--io)','rgba(0,174,239,0.07)','SEO AI','Citazioni nei motori AI (ChatGPT, Google AI Overview, Gemini, Perplexity, Claude) sulle keyword oggi deboli (come nella tab AI Presence, dove trovi l\'indice reale per AI Overview/Perplexity e quello stimato per gli altri). È il canale che cresce più in fretta.',aiSales,
         '<div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Ricerche AI intercettabili/mese</span><b>~'+fmt(aiReach)+'</b></div>','~€'+fmt(aiCanone),'priorità emergente')+
       leverCard('ti-currency-euro','var(--amber)','rgba(245,158,11,0.07)','Google Ads','Visibilità a pagamento immediata sulle keyword scoperte — scenario medio (budget ~€'+fmt(adsBudget)+'/mese, come nella tab Google Ads).',adsSales,
         '<div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Clic Ads/mese</span><b>'+fmt(adsClicks)+'</b></div>','€'+fmt(adsBudget))+
@@ -4404,7 +4433,7 @@ function renderOrganicSerp(d){
   }
   // Mod 7: abbino volume (traffico mensile) e CPC dalle keyword del report
   const kwMap={};
-  (d.keywords||[]).forEach(function(k){ if(k&&k.kw)kwMap[k.kw.toString().trim().toLowerCase()]={volume:k.volume||0,cpc:k.cpc||0}; });
+  (d.keywords||[]).forEach(function(k){ if(k&&k.kw)kwMap[k.kw.toString().trim().toLowerCase()]={volume:k.volume||0,cpc:k.cpc||0,dataSource:k.dataSource}; });
   function kwData(kw){ return kwMap[(kw||'').toString().trim().toLowerCase()]||{volume:0,cpc:0}; }
   const found=rows.filter(r=>r.position!=null);
   const avg=found.length?Math.round(found.reduce((s,r)=>s+r.position,0)/found.length):null;
@@ -4428,7 +4457,8 @@ function renderOrganicSerp(d){
         '<th style="width:16%;padding:9px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">Pos. Google</th>'+
         '<th style="width:13%;padding:9px 6px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">Traffico/mese</th>'+
         '<th style="width:12%;padding:9px 6px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">CPC medio</th>'+
-        '<th style="width:31%;padding:9px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">URL posizionato</th>'+
+        '<th style="width:11%;padding:9px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">Fonte</th>'+
+        '<th style="width:20%;padding:9px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">URL posizionato</th>'+
       '</tr></thead><tbody>';
   rows.forEach(function(r){
     const p=r.position;
@@ -4457,6 +4487,7 @@ function renderOrganicSerp(d){
       '<td style="padding:9px 4px;text-align:center">'+badge+'</td>'+
       '<td style="padding:9px 6px;text-align:right">'+(kd.volume?fmt(kd.volume):'—')+'</td>'+
       '<td style="padding:9px 6px;text-align:right;white-space:nowrap">'+(kd.cpc?('€'+kd.cpc.toFixed(2)):'—')+'</td>'+
+      '<td style="padding:9px 6px;text-align:center">'+srcTag(kd.dataSource)+'</td>'+
       '<td style="padding:9px 10px">'+urlCell+'</td>'+
     '</tr>';
   });
@@ -4532,7 +4563,7 @@ function renderGoogleAds(d){
     const breakdown=missing.map(k=>{
       const mc=Math.round((k.volume||0)*CTR);
       const cost=Math.round(mc*(k.cpc||0));
-      return {kw:k.kw,volume:k.volume||0,cpc:k.cpc||0,monthlyClicks:mc,monthlyCost:cost,annualCost:cost*12};
+      return {kw:k.kw,volume:k.volume||0,cpc:k.cpc||0,monthlyClicks:mc,monthlyCost:cost,annualCost:cost*12,dataSource:k.dataSource};
     });
     const totC=breakdown.reduce((s,b)=>s+b.monthlyClicks,0);
     const totE=breakdown.reduce((s,b)=>s+b.monthlyCost,0);
@@ -4657,6 +4688,7 @@ function renderGoogleAds(d){
       '<td style="padding:8px 10px;font-weight:600">'+b.kw+'</td>'+
       '<td style="padding:8px 10px;text-align:right">'+fmt(b.volume)+'</td>'+
       '<td style="padding:8px 10px;text-align:right">EUR '+(b.cpc||0).toFixed(2)+'</td>'+
+      '<td style="padding:8px 10px;text-align:center">'+srcTag(b.dataSource)+'</td>'+
       '<td style="padding:8px 10px;text-align:right">'+fmt(b.monthlyClicks)+'</td>'+
       '<td style="padding:8px 10px;text-align:right;font-weight:700;color:var(--amber)">EUR '+fmt(b.monthlyCost)+'</td>'+
       '<td style="padding:8px 10px;text-align:right;font-weight:700;color:var(--text)">EUR '+fmt(b.annualCost)+'</td>'+
@@ -4714,6 +4746,7 @@ function renderGoogleAds(d){
           '<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">Keyword</th>'+
           '<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Volume</th>'+
           '<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">CPC</th>'+
+          '<th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Fonte</th>'+
           '<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Clic/mese</th>'+
           '<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">EUR/mese</th>'+
           '<th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">EUR/anno</th>'+
@@ -5196,14 +5229,33 @@ function renderResults(d){
     <td style="font-weight:600">${k.kw}</td>
     <td>${(k.volume||0)>0?(k.volume).toLocaleString('it-IT'):'—'}</td>
     <td>${(k.cpc||0)>0?'€'+k.cpc.toFixed(2):'—'}</td>
+    <td>${srcTag(k.dataSource)}</td>
     <td><span class="badge ${cb[k.competition]||'b-amber'}">${k.competition}</span></td>
     <td><span class="badge ${rb[k.aiRank]||'b-amber'}">${k.aiRank}</span></td>
     <td style="vertical-align:top"><span style="color:${tv.c};font-weight:600;white-space:nowrap"><i class="ti ${tv.i}" style="font-size:13px;vertical-align:-2px;margin-right:3px"></i>${tv.lbl}${pctTxt}</span>${noteTxt}</td>
   </tr>`;}).join('');
 
-  const months=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  // Mod 115 (rev8): etichette mesi REALI da DataForSEO se disponibili, altrimenti ultimi 12 mesi fino al mese corrente (scorrevole).
+  const _meta=d.trendsMeta||{};
+  window._trendsReal=!!_meta.real;
+  function _fallbackMonths(){
+    const ab=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    const out=[];const now=new Date();
+    for(let i=11;i>=0;i--){const dd=new Date(now.getFullYear(),now.getMonth()-i,1);out.push(ab[dd.getMonth()]+" '"+String(dd.getFullYear()).slice(2));}
+    return out;
+  }
+  const months=(_meta.months&&_meta.months.length)?_meta.months:_fallbackMonths();
+  window._trendMonths=months;
   // Mod: salvo dati trend in window per consentire click-to-fix outlier
-  window._trendData=d.keywords.map(k=>({kw:k.kw,aiRank:k.aiRank,data:(k.trendData||Array(12).fill(50)).slice()}));
+  window._trendData=d.keywords.map(k=>({kw:k.kw,aiRank:k.aiRank,data:(k.trendData||Array(12).fill(50)).slice(),trendSource:k.trendSource||'ai'}));
+  (function(){
+    const note=document.getElementById('trends-source-note');if(!note)return;
+    if(window._trendsReal){
+      note.innerHTML='<div style="font-size:11px;color:var(--text2);background:rgba(29,158,117,0.08);border-left:3px solid #1D9E75;border-radius:var(--r);padding:8px 11px"><b style="color:#1D9E75">Dati reali Google Trends</b> (fonte DataForSEO, Italia) — ultimi 12 mesi fino al mese in corso, una linea per ciascuna keyword.</div>';
+    } else {
+      note.innerHTML='<div style="font-size:11px;color:var(--text2);background:rgba(186,117,23,0.08);border-left:3px solid var(--amber);border-radius:var(--r);padding:8px 11px"><b style="color:#BA7517">Stima di tendenza (AI)</b> — andamento indicativo su benchmark di settore, non rilevato da Google Trends. Per il dato reale serve DataForSEO attivo (account verificato + credito).</div>';
+    }
+  })();
   // Mod 19 (rev5): evidenzio le keyword con domanda prevista IN CRESCITA nei prossimi mesi
   function trendGrowingNow(k){
     const arr=(k.trendData&&k.trendData.length>=6)?k.trendData:null;
@@ -5244,15 +5296,35 @@ function renderResults(d){
     });
   },100);
 
-  document.getElementById('ai-rows').innerHTML=d.aiVisibility.map(v=>`<div class="ai-row" style="padding:6px 0">
-    <span class="ai-src"><i class="ti ti-brain" style="font-size:13px"></i>${v.source}</span>
+  // Mod 116 (rev8): doppio scenario AI Presence — indice REALE (AI Overview/Perplexity via ricerca) e indice STIMATO (altri).
+  const _aiMeta=d.aiMeta||{};
+  let aiDual='';
+  {
+    const rI=_aiMeta.realIndex, eI=_aiMeta.estIndex;
+    const box=(titolo,val,col,sub)=>'<div style="flex:1;min-width:150px;background:var(--bg2);border-radius:var(--r);border-left:3px solid '+col+';padding:11px 13px">'+
+      '<div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;font-weight:700">'+titolo+'</div>'+
+      '<div style="font-size:22px;font-weight:900;color:'+col+';line-height:1.1;margin-top:3px">'+(val!=null?val+'%':'n/d')+'</div>'+
+      '<div style="font-size:9.5px;color:var(--text3);margin-top:3px;line-height:1.4">'+sub+'</div></div>';
+    aiDual='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
+      box('Indice reale', rI, '#1D9E75', (_aiMeta.realChecked?('verificato su '+(_aiMeta.checkedQueries||0)+' ricerche · '+(_aiMeta.realEngines||[]).join(', ')):'non disponibile (Serper non attivo)'))+
+      box('Indice stimato', eI, '#BA7517', 'stima AI · '+((_aiMeta.estEngines||[]).join(', ')||'ChatGPT, Claude, Gemini'))+
+    '</div>'+
+    '<div style="font-size:10px;color:var(--text3);line-height:1.5;margin-bottom:10px;padding:8px 11px;background:rgba(0,174,239,0.05);border-radius:var(--r)"><b>Come leggere i due indici:</b> l\'<b style="color:#1D9E75">indice reale</b> misura la presenza effettiva del sito tra le fonti che Google AI Overview e Perplexity attingono dai primi risultati di ricerca (verifica via Serper). L\'<b style="color:#BA7517">indice stimato</b> è una valutazione AI per ChatGPT, Claude e Gemini, che non espongono dati pubblici di citazione. I due valori vanno letti separatamente, non come una media unica.</div>';
+  }
+  document.getElementById('ai-rows').innerHTML=aiDual+d.aiVisibility.map(v=>{
+    const isReal=!!v.real;
+    const badge=isReal
+      ? '<span style="font-size:8.5px;font-weight:700;color:#1D9E75;background:rgba(29,158,117,0.12);padding:1px 6px;border-radius:7px;margin-left:6px">dato reale</span>'
+      : '<span style="font-size:8.5px;font-weight:600;color:#BA7517;background:rgba(186,117,23,0.12);padding:1px 6px;border-radius:7px;margin-left:6px">stima</span>';
+    return `<div class="ai-row" style="padding:6px 0">
+    <span class="ai-src"><i class="ti ti-brain" style="font-size:13px"></i>${v.source}${badge}</span>
     <div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
         <div class="bar-bg" style="height:6px"><div class="bar-fg" style="width:${v.probability}%;background:${dc(v.probability)}"></div></div>
         <span style="font-size:12px;font-weight:700;min-width:36px;text-align:right;color:${dc(v.probability)}">${v.probability}%</span>
       </div>
       <div style="font-size:10.5px;color:var(--text2)">${v.note||''}</div>
-    </div></div>`).join('');
+    </div></div>`;}).join('');
 
   const barColors=['#185FA5','#1D9E75','#BA7517','#8B4BA8','#00AEEF','#D4445C','#0891B2','#059669','#7C3AED','#B45309','#DC2626','#0F766E'];
   const kwColors=d.keywords.map((_,i)=>barColors[i%barColors.length]);
