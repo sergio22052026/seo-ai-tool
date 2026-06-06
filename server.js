@@ -432,6 +432,94 @@ async function enrichKeywordsWithRealData(kwList) {
   return { list: kwList, realUsed };
 }
 
+// Mod 115 (rev8): Google Trends REALI via DataForSEO — serie mensile ultimi 12 mesi fino al mese corrente.
+// Ritorna { byKw: { keyword_lower: [{date, value}, ...] }, months: [etichette], real: true } oppure null.
+async function fetchGoogleTrends(keywords) {
+  if (!DATAFORSEO_AUTH) return null;
+  const kws = [...new Set((keywords || []).map(k => (k || '').toString().trim()).filter(Boolean))].slice(0, 5);
+  if (!kws.length) return null;
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 12000);
+    // finestra: ultimi 12 mesi fino a oggi
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const fmt = d => d.toISOString().slice(0, 10);
+    const r = await fetch('https://api.dataforseo.com/v3/keywords_data/google_trends/explore/live', {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Authorization': 'Basic ' + DATAFORSEO_AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify([{
+        location_code: DFS_LOCATION_CODE, language_code: DFS_LANGUAGE_CODE,
+        keywords: kws, date_from: fmt(from), date_to: fmt(now), time_range: 'past_12_months', item_types: ['google_trends_graph']
+      }])
+    });
+    clearTimeout(to);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const result = (((j.tasks || [])[0] || {}).result) || [];
+    const graph = result.find(x => x && Array.isArray(x.items)) || result[0];
+    if (!graph || !Array.isArray(graph.items)) return null;
+    const series = graph.items.find(it => it && (it.type === 'google_trends_graph' || Array.isArray(it.data))) || graph.items[0];
+    if (!series || !Array.isArray(series.data)) return null;
+    const byKw = {}; kws.forEach(k => byKw[k.toLowerCase()] = []);
+    const monthsSet = [];
+    for (const point of series.data) {
+      const ts = point.date_from || point.timestamp;
+      let label = '';
+      try { const d = ts ? new Date(ts.length > 10 ? ts : ts + 'T00:00:00') : null; if (d) label = d.toLocaleDateString('it-IT', { month: 'short', year: '2-digit' }); } catch (e) {}
+      monthsSet.push(label);
+      const vals = point.values || [];
+      kws.forEach((k, i) => { byKw[k.toLowerCase()].push(typeof vals[i] === 'number' ? vals[i] : (point.value != null ? point.value : null)); });
+    }
+    return { byKw, months: monthsSet, real: true };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Mod 116 (rev8): segnale REALE di presenza nelle fonti AI (Google AI Overview / Perplexity).
+// Questi motori attingono fortemente ai top risultati di ricerca: verifico via Serper se il dominio
+// del cliente compare tra i primi risultati per alcune query → proxy di "citabilità" dalle fonti AI.
+// Ritorna { aiOverview: 0-100, perplexity: 0-100, checked: n } oppure null.
+async function checkAIPresenceReal(keywords, website, geo) {
+  if (!SERPER_API_KEY || !website) return null;
+  const tgt = normDomain(website);
+  if (!tgt) return null;
+  const kws = [...new Set((keywords || []).map(k => (k || '').toString().trim()).filter(Boolean))].slice(0, 6);
+  if (!kws.length) return null;
+  try {
+    const checkOne = async (kw) => {
+      try {
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 6000);
+        const r = await fetch('https://google.serper.dev/search', {
+          method: 'POST', signal: ctrl.signal,
+          headers: { 'X-API-KEY': SERPER_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: kw, gl: (geo && geo.gl) || 'it', hl: (geo && geo.hl) || 'it', location: (geo && geo.location) || 'Italy', num: 10 })
+        });
+        clearTimeout(to);
+        const j = await r.json();
+        const org = Array.isArray(j.organic) ? j.organic : [];
+        // presente nei primi 10 (le fonti che AI Overview/Perplexity citano più spesso)
+        const inTop = org.slice(0, 10).some(o => {
+          const d = normDomain(o.link || o.domain || '');
+          return d && (d === tgt || d.endsWith('.' + tgt) || tgt.endsWith('.' + d));
+        });
+        return inTop;
+      } catch (e) { return null; }
+    };
+    const results = await Promise.all(kws.map(k => withTimeout(checkOne(k), 7000, null)));
+    const valid = results.filter(v => v !== null);
+    if (!valid.length) return null;
+    const presentCount = valid.filter(Boolean).length;
+    const pct = Math.round((presentCount / valid.length) * 100);
+    // AI Overview pesa di più i top organici; Perplexity simile ma leggermente più ampio → piccola differenza
+    return { aiOverview: pct, perplexity: Math.min(100, Math.round(pct * 0.95)), checked: valid.length };
+  } catch (e) {
+    return null;
+  }
+}
+
 // normalizza un dominio per il confronto (toglie protocollo, www, path)
 function normDomain(u) {
   if (!u) return '';
@@ -538,7 +626,6 @@ async function buildCWV(website) {
 // ════════ Mod 95 (rev8): verifica presenza directory (Italiaonline + altre) via Serper + fetch pagina ════════
 const DIRECTORY_NETWORK = [
   { name: 'PagineGialle', domain: 'paginegialle.it', network: 'Italiaonline' },
-  { name: 'Virgilio Aziende', domain: 'virgilio.it', network: 'Italiaonline' },
   { name: 'PagineBianche', domain: 'paginebianche.it', network: 'Italiaonline' },
   { name: 'Cylex', domain: 'cylex.it', network: 'altro' },
   { name: 'Hotfrog', domain: 'hotfrog.it', network: 'altro' }
@@ -595,20 +682,38 @@ async function inspectDirectoryPage(url, snippet) {
     const r = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36' } });
     clearTimeout(to);
     if (!r.ok) throw new Error('http_' + r.status);
-    const low = (await r.text()).toLowerCase();
+    const html = await r.text();
+    const low = html.toLowerCase();
+    const htmlLen = html.length;
     let strong = 0;
-    if (/\d+\s*recension|valutazione media|scrivi una recensione|\d[.,]\d\s*(su|\/)\s*5|stelle/.test(low)) strong++;
-    if (/chiedi preventivo|richiedi preventivo|whatsapp/.test(low)) strong++;
-    if (/galleria|<img[^>]+(logo|gallery|foto)/.test(low)) strong++;
-    if (/attivit[àa] verificat|profilo verificat|titolare verificat|gestita dal proprietario|verified|badge-verified/.test(low)) strong++;
-    if (/orari di apertura|aperto fino|aperto ora/.test(low)) strong++;
+    const signals = [];
+    // Mod 113 (rev8): segnali di scheda ATTIVA/gestita su PagineGialle/PagineBianche e simili.
+    // recensioni / valutazioni
+    if (/\d+\s*recension|valutazione media|scrivi una recensione|\d[.,]\d\s*(su|\/)\s*5|stelle|rating/.test(low)) { strong++; signals.push('recensioni'); }
+    // contatti / azioni dirette (tipiche di scheda gestita)
+    if (/chiedi preventivo|richiedi preventivo|whatsapp|invia messaggio|chiama ora|prenota|contatta/.test(low)) { strong++; signals.push('azioni-contatto'); }
+    // LOGO aziendale (non il logo del portale): classi/attributi tipici della scheda azienda
+    if (/(class|id)="[^"]*(company|business|azienda|vetrina|profilo)[^"]*logo|logo[^"]*(azienda|company|business)|data-logo|img[^>]+alt="[^"]*logo/.test(low)) { strong++; signals.push('logo'); }
+    // galleria foto della scheda
+    if (/galleria|gallery|photo-gallery|fotografie|<img[^>]+(gallery|foto|photo|vetrina)/.test(low)) { strong++; signals.push('foto'); }
+    // descrizione / profilo ricco
+    if (/descrizione dell'attivit|chi siamo|la nostra azienda|profilo aziendale|presentazione|servizi offerti/.test(low)) { strong++; signals.push('descrizione'); }
+    // verifica / titolare
+    if (/attivit[àa] verificat|profilo verificat|titolare verificat|gestita dal proprietario|verified|badge-verified|account verificato/.test(low)) { strong++; signals.push('verificata'); }
+    // orari + sito web del cliente
+    if (/orari di apertura|aperto fino|aperto ora|lun-ven|lunedì/.test(low)) { strong++; signals.push('orari'); }
+    if (/sito web|visita il sito|vai al sito|website/.test(low)) { strong++; signals.push('sito-web'); }
     const claimSpecific = claimSpecificRe.test(low);
+    // pagina troppo corta / scheletro JS = non leggibile in modo affidabile
+    const tooThin = htmlLen < 4000;
     let stato;
-    if (strong >= 2) stato = 'completa';
-    else if (claimSpecific && strong === 0) stato = 'bianca';
-    else if (strong === 1) stato = 'parziale';
-    else stato = 'da_verificare';
-    return { stato, strong, claimSpecific, source: 'pagina' };
+    if (tooThin && strong === 0) stato = 'da_verificare';            // HTML scheletro (JS) → onesto
+    else if (strong >= 3) stato = 'completa';                         // molti segnali forti → attiva
+    else if (strong >= 1 && !claimSpecific) stato = 'completa';       // qualche segnale e nessun marker di non-rivendica → attiva
+    else if (claimSpecific && strong === 0) stato = 'bianca';         // marker esplicito di scheda non rivendicata + nessun segnale
+    else if (strong === 0) stato = 'da_verificare';                   // niente di leggibile → onesto, non "bianca"
+    else stato = 'parziale';
+    return { stato, strong, signals, claimSpecific, source: 'pagina' };
   } catch (e) {
     const low = (snippet || '').toLowerCase();
     if (claimSpecificRe.test(low)) return { stato: 'bianca', source: 'snippet' };
@@ -897,13 +1002,59 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
       parsed.organicSerp = { enabled: false, reason: 'error', results: [] };
     }
     // Mod 93/95/102: Core Web Vitals + verifica directory IN PARALLELO, ciascuna con tetto di tempo.
-    // Non bloccano mai il report: se sforano, la sezione mostra "non disponibile".
-    const [cwvRes, dirRes] = await Promise.all([
+    // Mod 115: + Google Trends reali (DataForSEO), tutto in parallelo.
+    const kwNames = (parsed.keywords || []).map(k => k.kw).filter(Boolean);
+    const aiGeo = { gl: 'it', hl: 'it', location: ([comune, provincia].filter(Boolean).join(', ') || city || 'Italy') };
+    const [cwvRes, dirRes, trendsRes, aiRealRes] = await Promise.all([
       withTimeout(buildCWV(website).catch(() => null), 13000, null),
-      withTimeout(verifyDirectories(company, cityRef).catch(() => null), 10000, null)
+      withTimeout(verifyDirectories(company, cityRef).catch(() => null), 10000, null),
+      withTimeout(fetchGoogleTrends(kwNames).catch(() => null), 12000, null),
+      withTimeout(checkAIPresenceReal(kwNames, website, aiGeo).catch(() => null), 12000, null)
     ]);
     parsed.cwvReal = cwvRes || { enabled: !!GOOGLE_API_KEY, source: 'crux', mobile: { present: false, reason: 'timeout' }, desktop: { present: false, reason: 'timeout' } };
     parsed.directories = dirRes || { enabled: false, reason: 'timeout', items: [] };
+    // Mod 115: applico i trend REALI dove disponibili (una serie per keyword), altrimenti resta la stima AI
+    if (trendsRes && trendsRes.byKw) {
+      parsed.trendsMeta = { real: true, source: 'dataforseo', months: trendsRes.months || [] };
+      (parsed.keywords || []).forEach(k => {
+        const serie = trendsRes.byKw[(k.kw || '').toLowerCase()];
+        if (serie && serie.length && serie.some(v => v != null)) {
+          k.trendData = serie.map(v => (v == null ? 0 : v));
+          k.trendSource = 'dataforseo';
+        } else {
+          k.trendSource = 'ai';
+        }
+      });
+    } else {
+      parsed.trendsMeta = { real: false, source: 'ai', months: [] };
+      (parsed.keywords || []).forEach(k => { k.trendSource = 'ai'; });
+    }
+    // Mod 116 (rev8): AI Presence — dato REALE per Google AI Overview / Perplexity (via Serper),
+    // STIMA per ChatGPT/Claude/Gemini. Marco ogni motore con real:true/false e calcolo DUE indici distinti.
+    if (Array.isArray(parsed.aiVisibility)) {
+      const realMap = aiRealRes ? { 'google ai overview': aiRealRes.aiOverview, 'perplexity': aiRealRes.perplexity } : null;
+      parsed.aiVisibility.forEach(m => {
+        const key = (m.source || '').toLowerCase();
+        if (realMap && realMap[key] != null) {
+          m.probability = realMap[key];
+          m.real = true;
+          m.note = 'presenza reale nelle fonti (verificata via ricerca)';
+        } else {
+          m.real = false;
+        }
+      });
+      const reals = parsed.aiVisibility.filter(m => m.real);
+      const ests = parsed.aiVisibility.filter(m => !m.real);
+      const avg = arr => arr.length ? Math.round(arr.reduce((s, m) => s + (m.probability || 0), 0) / arr.length) : null;
+      parsed.aiMeta = {
+        realChecked: !!aiRealRes,
+        realIndex: avg(reals),          // indice REALE (AI Overview + Perplexity)
+        estIndex: avg(ests),            // indice STIMATO (ChatGPT/Claude/Gemini)
+        realEngines: reals.map(m => m.source),
+        estEngines: ests.map(m => m.source),
+        checkedQueries: aiRealRes ? aiRealRes.checked : 0
+      };
+    }
     const _tok=req.headers['x-session-token'];const _sess=_tok?sessions.get(_tok):null;if(_sess)logReport(_sess,req.body,parsed.overallScore||0);res.json(parsed);
   } catch (err) {
     res.status(500).json({ error: traduciErroreAnthropic(err) });
