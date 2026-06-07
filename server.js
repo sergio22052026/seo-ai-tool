@@ -35,6 +35,14 @@ async function initDB() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    // Mod 8a (rev9): persistenza sessioni — sopravvivono ai riavvii del server (Render free-tier).
+    await dbClient.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        data JSONB NOT NULL,
+        created_at BIGINT NOT NULL
+      )
+    `);
     console.log('✅ Database connesso e pronto.');
   } catch (e) { console.error('❌ Errore DB:', e.message); dbClient = null; }
 }
@@ -90,9 +98,38 @@ const sessions = new Map();
 setInterval(() => {
   const now = Date.now();
   for (const [token, session] of sessions.entries()) {
-    if (now - session.createdAt > 8 * 60 * 60 * 1000) sessions.delete(token);
+    if (now - session.createdAt > 8 * 60 * 60 * 1000) { sessions.delete(token); dropSession(token); }
   }
 }, 60 * 60 * 1000);
+
+// Mod 8a (rev9): persistenza sessioni su Postgres con cache RAM davanti (write-through).
+// isAuthenticated/getApiKey restano SINCRONI (leggono dalla cache); all'avvio la cache viene
+// idratata dal DB, così le sessioni sopravvivono ai riavvii del server.
+function setSession(token, data) {
+  sessions.set(token, data);
+  if (dbClient) {
+    dbClient.query('INSERT INTO sessions (token, data, created_at) VALUES ($1,$2,$3) ON CONFLICT (token) DO UPDATE SET data=$2, created_at=$3',
+      [token, JSON.stringify(data), data.createdAt]).catch(e => console.error('persistSession:', e.message));
+  }
+}
+function dropSession(token) {
+  if (dbClient) dbClient.query('DELETE FROM sessions WHERE token=$1', [token]).catch(() => {});
+}
+async function hydrateSessions() {
+  if (!dbClient) return;
+  try {
+    const cutoff = Date.now() - 8 * 60 * 60 * 1000;
+    await dbClient.query('DELETE FROM sessions WHERE created_at < $1', [cutoff]); // pulizia scadute
+    const r = await dbClient.query('SELECT token, data, created_at FROM sessions');
+    let n = 0;
+    for (const row of r.rows) {
+      const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+      sessions.set(row.token, data);
+      n++;
+    }
+    console.log('[SESSIONS] idratate ' + n + ' sessioni dal database');
+  } catch (e) { console.error('hydrateSessions:', e.message); }
+}
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 function isAuthenticated(req) {
@@ -100,7 +137,7 @@ function isAuthenticated(req) {
   if (!token) return false;
   const session = sessions.get(token);
   if (!session) return false;
-  if (Date.now() - session.createdAt > 8 * 60 * 60 * 1000) { sessions.delete(token); return false; }
+  if (Date.now() - session.createdAt > 8 * 60 * 60 * 1000) { sessions.delete(token); dropSession(token); return false; }
   return true;
 }
 function isAdmin(req) {
@@ -116,7 +153,7 @@ app.post('/api/login', (req, res) => {
   if (!apiKey || !apiKey.startsWith('sk-ant-')) return res.status(401).json({ error: 'Chiave API non valida. Deve iniziare con sk-ant-' });
   const token = generateToken();
   const nm = (agentName||'').trim()||'Agente';
-  sessions.set(token, { createdAt: Date.now(), role: 'agent', apiKey: apiKey.trim(), agentName: nm });
+  setSession(token, { createdAt: Date.now(), role: 'agent', apiKey: apiKey.trim(), agentName: nm });
   logAgentLogin(nm); // Mod 106: registra l'accesso (non blocca la risposta)
   res.json({ token, role: 'agent' });
 });
@@ -126,7 +163,7 @@ app.post('/api/login/demo', (req, res) => {
   if (!password || password !== DEMO_PASSWORD) return res.status(401).json({ error: 'Password demo errata.' });
   if (!DEMO_API_KEY) return res.status(500).json({ error: 'Chiave demo non configurata. Contatta il responsabile.' });
   const token = generateToken();
-  sessions.set(token, { createdAt: Date.now(), role: 'agent', apiKey: DEMO_API_KEY, isDemo: true, agentName: (agentName||'').trim()||'Demo' });
+  setSession(token, { createdAt: Date.now(), role: 'agent', apiKey: DEMO_API_KEY, isDemo: true, agentName: (agentName||'').trim()||'Demo' });
   res.json({ token, role: 'agent' });
 });
 
@@ -134,13 +171,13 @@ app.post('/api/admin/login', (req, res) => {
   const { password } = req.body;
   if (!password || password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Password admin errata' });
   const token = generateToken();
-  sessions.set(token, { createdAt: Date.now(), role: 'admin' });
+  setSession(token, { createdAt: Date.now(), role: 'admin' });
   res.json({ token, role: 'admin' });
 });
 
 app.post('/api/logout', (req, res) => {
   const token = req.headers['x-session-token'];
-  if (token) sessions.delete(token);
+  if (token) { sessions.delete(token); dropSession(token); }
   res.json({ ok: true });
 });
 
@@ -157,7 +194,7 @@ app.post('/api/admin/change-password', (req, res) => {
   if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Minimo 6 caratteri' });
   agentPassword = newPassword;
   for (const [token, session] of sessions.entries()) {
-    if (session.role === 'agent') sessions.delete(token);
+    if (session.role === 'agent') { sessions.delete(token); dropSession(token); }
   }
   res.json({ ok: true });
 });
@@ -223,7 +260,7 @@ app.post('/api/check-site', async (req, res) => {
 // STEP 1: suggerimenti
 app.post('/api/suggest', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
-  const { company, website, city, comune, provincia, settore, kwCount, compCount, bizType, rilevanza, visibilita, geoAreas, geoMode, geoRadius } = req.body;
+  const { company, website, city, comune, provincia, settore, kwCount, compCount, bizType, rilevanza, visibilita, geoAreas, geoMode, geoRadius, apiMode } = req.body;
   if (!company) return res.status(400).json({ error: 'company mancante' });
   const usedKey = getApiKey(req);
   if (!usedKey) return res.status(500).json({ error: 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.' });
@@ -349,8 +386,13 @@ Genera esattamente ${n} keyword e ${nc} competitor. Dati realistici.`;
     }
     const parsedSuggest = JSON.parse(raw);
     // Mod 108: sostituisco volume/CPC stimati con dati REALI DataForSEO dove disponibili (fallback stima)
+    // Mod 118: in demo con apiMode==='stima' si SALTA del tutto DataForSEO (zero consumo credito).
     try {
-      if (parsedSuggest && Array.isArray(parsedSuggest.suggestedKeywords)) {
+      if (apiMode === 'stima') {
+        if (Array.isArray(parsedSuggest.suggestedKeywords)) parsedSuggest.suggestedKeywords.forEach(k => { k.dataSource = 'ai'; });
+        parsedSuggest.keywordDataSource = 'ai';
+        console.log('[APIMODE] suggest in modalità STIMA — DataForSEO non interrogato');
+      } else if (parsedSuggest && Array.isArray(parsedSuggest.suggestedKeywords)) {
         const en = await enrichKeywordsWithRealData(parsedSuggest.suggestedKeywords);
         parsedSuggest.suggestedKeywords = en.list;
         parsedSuggest.keywordDataSource = en.realUsed ? 'dataforseo' : 'ai';
@@ -379,6 +421,8 @@ const DFS_LANGUAGE_CODE = 'it';
   try { dfsLooksValid = dfsLen > 0 && Buffer.from(DATAFORSEO_AUTH, 'base64').toString('utf8').includes(':'); } catch (e) {}
   console.log('[API-KEYS] DATAFORSEO_AUTH: ' + (dfsLen ? ('presente (len=' + dfsLen + ', formato Base64 login:password ' + (dfsLooksValid ? 'OK' : 'SOSPETTO — non sembra Base64 di "login:password"') + ')') : 'ASSENTE — volume/CPC useranno sempre la stima AI'));
   console.log('[API-KEYS] SERPER_API_KEY: ' + (SERPER_API_KEY.length ? ('presente (len=' + SERPER_API_KEY.length + ')') : 'ASSENTE — posizioni SERP non verranno rilevate'));
+  const _gKey = process.env.GOOGLE_API_KEY || process.env.PAGESPEED_API_KEY || '';
+  console.log('[API-KEYS] GOOGLE_API_KEY (PageSpeed/CWV): ' + (_gKey.length ? ('presente (len=' + _gKey.length + ')') : 'ASSENTE — Core Web Vitals useranno valori indicativi, non misurati'));
 })();
 
 // Restituisce una mappa { keyword(lowercase): {volume, cpc, competition} } REALE per le keyword passate.
@@ -449,29 +493,29 @@ async function enrichKeywordsWithRealData(kwList) {
   return { list: kwList, realUsed };
 }
 
-// Mod 115 (rev8): Google Trends REALI via DataForSEO — serie mensile ultimi 12 mesi fino al mese corrente.
-// Ritorna { byKw: { keyword_lower: [{date, value}, ...] }, months: [etichette], real: true } oppure null.
+// Mod 1 (rev9): Google Trends REALI via DataForSEO — serie mensile da GENNAIO DELL'ANNO PRECEDENTE
+// fino al mese corrente (finestra crescente). Ritorna { byKw, months, real:true } oppure null.
 async function fetchGoogleTrends(keywords) {
-  if (!DATAFORSEO_AUTH) return null;
+  if (!DATAFORSEO_AUTH) { console.log('[TRENDS] skip — DATAFORSEO_AUTH assente'); return null; }
   const kws = [...new Set((keywords || []).map(k => (k || '').toString().trim()).filter(Boolean))].slice(0, 5);
   if (!kws.length) return null;
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 12000);
-    // finestra: ultimi 12 mesi fino a oggi
+    // finestra: 1° gennaio dell'anno precedente → oggi (custom range, niente time_range predefinito)
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const from = new Date(now.getFullYear() - 1, 0, 1);
     const fmt = d => d.toISOString().slice(0, 10);
     const r = await fetch('https://api.dataforseo.com/v3/keywords_data/google_trends/explore/live', {
       method: 'POST', signal: ctrl.signal,
       headers: { 'Authorization': 'Basic ' + DATAFORSEO_AUTH, 'Content-Type': 'application/json' },
       body: JSON.stringify([{
         location_code: DFS_LOCATION_CODE, language_code: DFS_LANGUAGE_CODE,
-        keywords: kws, date_from: fmt(from), date_to: fmt(now), time_range: 'past_12_months', item_types: ['google_trends_graph']
+        keywords: kws, date_from: fmt(from), date_to: fmt(now), item_types: ['google_trends_graph']
       }])
     });
     clearTimeout(to);
-    if (!r.ok) return null;
+    if (!r.ok) { console.log('[TRENDS] HTTP ' + r.status); return null; }
     const j = await r.json();
     const result = (((j.tasks || [])[0] || {}).result) || [];
     const graph = result.find(x => x && Array.isArray(x.items)) || result[0];
@@ -488,8 +532,10 @@ async function fetchGoogleTrends(keywords) {
       const vals = point.values || [];
       kws.forEach((k, i) => { byKw[k.toLowerCase()].push(typeof vals[i] === 'number' ? vals[i] : (point.value != null ? point.value : null)); });
     }
+    console.log('[TRENDS] OK — ' + monthsSet.length + ' mesi, ' + kws.length + ' kw');
     return { byKw, months: monthsSet, real: true };
   } catch (e) {
+    console.log('[TRENDS] eccezione: ' + (e && e.name === 'AbortError' ? 'timeout' : (e && e.message || e)));
     return null;
   }
 }
@@ -809,7 +855,7 @@ async function buildOrganicSerp(selectedKeywords, website, geo) {
 // STEP 2: analisi completa
 app.post('/api/analyze', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
-  const { company, website, city, comune, provincia, settore, bizType, rilevanza, visibilita, selectedKeywords, selectedCompetitors, companyInfo } = req.body;
+  const { company, website, city, comune, provincia, settore, bizType, rilevanza, visibilita, selectedKeywords, selectedCompetitors, companyInfo, apiMode } = req.body;
   if (!company) return res.status(400).json({ error: 'company mancante' });
   const usedKey2 = getApiKey(req);
   if (!usedKey2) return res.status(500).json({ error: 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.' });
@@ -1012,21 +1058,28 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
       }
     }
     // Mod 3: posizione organica reale nella SERP (Serper.dev) — non blocca il report se fallisce
-    try {
-      const locationFull = [comune, provincia].filter(Boolean).join(', ') || city || 'Italy';
-      parsed.organicSerp = await buildOrganicSerp(selectedKeywords, website, { gl: 'it', hl: 'it', location: locationFull });
-    } catch (e) {
-      parsed.organicSerp = { enabled: false, reason: 'error', results: [] };
+    // Mod 118: in demo modalità STIMA si salta Serper (zero consumo credito).
+    if (apiMode === 'stima') {
+      parsed.organicSerp = { enabled: false, reason: 'apimode_stima', results: [] };
+      console.log('[APIMODE] analyze in modalità STIMA — Serper/DataForSEO non interrogati');
+    } else {
+      try {
+        const locationFull = [comune, provincia].filter(Boolean).join(', ') || city || 'Italy';
+        parsed.organicSerp = await buildOrganicSerp(selectedKeywords, website, { gl: 'it', hl: 'it', location: locationFull });
+      } catch (e) {
+        parsed.organicSerp = { enabled: false, reason: 'error', results: [] };
+      }
     }
     // Mod 93/95/102: Core Web Vitals + verifica directory IN PARALLELO, ciascuna con tetto di tempo.
     // Mod 115: + Google Trends reali (DataForSEO), tutto in parallelo.
     const kwNames = (parsed.keywords || []).map(k => k.kw).filter(Boolean);
     const aiGeo = { gl: 'it', hl: 'it', location: ([comune, provincia].filter(Boolean).join(', ') || city || 'Italy') };
+    const _stima = (apiMode === 'stima');
     const [cwvRes, dirRes, trendsRes, aiRealRes] = await Promise.all([
       withTimeout(buildCWV(website).catch(() => null), 13000, null),
-      withTimeout(verifyDirectories(company, cityRef).catch(() => null), 10000, null),
-      withTimeout(fetchGoogleTrends(kwNames).catch(() => null), 12000, null),
-      withTimeout(checkAIPresenceReal(kwNames, website, aiGeo).catch(() => null), 12000, null)
+      _stima ? Promise.resolve(null) : withTimeout(verifyDirectories(company, cityRef).catch(() => null), 10000, null),
+      _stima ? Promise.resolve(null) : withTimeout(fetchGoogleTrends(kwNames).catch(() => null), 12000, null),
+      _stima ? Promise.resolve(null) : withTimeout(checkAIPresenceReal(kwNames, website, aiGeo).catch(() => null), 12000, null)
     ]);
     parsed.cwvReal = cwvRes || { enabled: !!GOOGLE_API_KEY, source: 'crux', mobile: { present: false, reason: 'timeout' }, desktop: { present: false, reason: 'timeout' } };
     parsed.directories = dirRes || { enabled: false, reason: 'timeout', items: [] };
@@ -1208,5 +1261,5 @@ app.listen(PORT, () => {
   console.log(`\n✅ SEO AI Tool v4 avviato su http://localhost:${PORT}`);
   console.log(`🔑 Password agenti: ${agentPassword}`);
   console.log(`🛡️  Password admin:  ${ADMIN_PASSWORD}\n`);
-  initDB();
+  initDB().then(() => hydrateSessions());
 });
