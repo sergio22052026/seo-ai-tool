@@ -371,12 +371,22 @@ const DATAFORSEO_AUTH = process.env.DATAFORSEO_AUTH || '';
 const DFS_LOCATION_CODE = 2380; // Italia
 const DFS_LANGUAGE_CODE = 'it';
 
+// Mod 116 (rev8): diagnostica startup — verifica presenza/formato chiavi API senza esporre i valori.
+(function logApiKeyStatus() {
+  const dfsLen = DATAFORSEO_AUTH.length;
+  // Una stringa Base64 di "login:password" decodificata DEVE contenere ":". Verifico senza loggare il contenuto.
+  let dfsLooksValid = false;
+  try { dfsLooksValid = dfsLen > 0 && Buffer.from(DATAFORSEO_AUTH, 'base64').toString('utf8').includes(':'); } catch (e) {}
+  console.log('[API-KEYS] DATAFORSEO_AUTH: ' + (dfsLen ? ('presente (len=' + dfsLen + ', formato Base64 login:password ' + (dfsLooksValid ? 'OK' : 'SOSPETTO — non sembra Base64 di "login:password"') + ')') : 'ASSENTE — volume/CPC useranno sempre la stima AI'));
+  console.log('[API-KEYS] SERPER_API_KEY: ' + (SERPER_API_KEY.length ? ('presente (len=' + SERPER_API_KEY.length + ')') : 'ASSENTE — posizioni SERP non verranno rilevate'));
+})();
+
 // Restituisce una mappa { keyword(lowercase): {volume, cpc, competition} } REALE per le keyword passate.
 // Se la chiave manca / errore / timeout → ritorna null (il chiamante userà la stima AI come fallback).
 async function fetchKeywordVolumes(keywords) {
-  if (!DATAFORSEO_AUTH) return null;
+  if (!DATAFORSEO_AUTH) { console.log('[DFS] skip — DATAFORSEO_AUTH assente'); return null; }
   const kws = [...new Set((keywords || []).map(k => (k || '').toString().trim()).filter(Boolean))].slice(0, 100);
-  if (!kws.length) return null;
+  if (!kws.length) { console.log('[DFS] skip — nessuna keyword da interrogare'); return null; }
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 12000);
@@ -386,10 +396,14 @@ async function fetchKeywordVolumes(keywords) {
       body: JSON.stringify([{ location_code: DFS_LOCATION_CODE, language_code: DFS_LANGUAGE_CODE, keywords: kws }])
     });
     clearTimeout(to);
-    if (!r.ok) return null;
+    if (!r.ok) { console.log('[DFS] HTTP ' + r.status + ' (' + (r.status === 401 ? 'auth errata — controlla che DATAFORSEO_AUTH sia il Base64 di login:password' : r.status === 402 ? 'credito esaurito' : 'errore') + ') per ' + kws.length + ' kw'); return null; }
     const j = await r.json();
-    const items = (((j.tasks || [])[0] || {}).result) || [];
-    if (!items.length) return null;
+    // DataForSEO espone lo stato anche nel body: status_code 20000 = OK.
+    if (j && j.status_code && j.status_code !== 20000) { console.log('[DFS] status_code ' + j.status_code + ': ' + (j.status_message || '')); }
+    const task0 = (j.tasks || [])[0] || {};
+    if (task0.status_code && task0.status_code !== 20000) { console.log('[DFS] task status_code ' + task0.status_code + ': ' + (task0.status_message || '')); }
+    const items = (task0.result) || [];
+    if (!items.length) { console.log('[DFS] nessun risultato per ' + kws.length + ' kw'); return null; }
     const map = {};
     for (const it of items) {
       const k = (it.keyword || '').toLowerCase();
@@ -403,8 +417,11 @@ async function fetchKeywordVolumes(keywords) {
         source: 'dataforseo'
       };
     }
+    const withVol = Object.keys(map).filter(k => map[k].volume != null).length;
+    console.log('[DFS] OK — ' + Object.keys(map).length + '/' + kws.length + ' kw ritornate, ' + withVol + ' con volume valorizzato');
     return Object.keys(map).length ? map : null;
   } catch (e) {
+    console.log('[DFS] eccezione: ' + (e && e.name === 'AbortError' ? 'timeout 12s' : (e && e.message || e)));
     return null;
   }
 }
@@ -544,7 +561,7 @@ async function serperPosition(keyword, targetDomain, gl, hl, location) {
       body: JSON.stringify({ q: keyword, gl: gl || 'it', hl: hl || 'it', location: location || 'Italy', num: 100 })
     });
   } finally { clearTimeout(to); }
-  if (!r.ok) throw new Error('serper http ' + r.status);
+  if (!r.ok) { console.log('[SERPER] HTTP ' + r.status + ' (' + (r.status === 401 || r.status === 403 ? 'API key errata/assente' : r.status === 429 ? 'rate limit / credito esaurito' : 'errore') + ') per kw "' + keyword + '"'); throw new Error('serper http ' + r.status); }
   const j = await r.json();
   const organic = Array.isArray(j.organic) ? j.organic : [];
   let found = null;
