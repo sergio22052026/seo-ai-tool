@@ -171,7 +171,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .ring{width:72px;height:72px;flex-shrink:0}
 .ring circle{fill:none;stroke-width:7;stroke-linecap:round}
 .tabs-wrap{background:var(--bg);border-bottom:0.5px solid var(--border);padding:10px 0 4px;margin-bottom:0;display:flex;flex-direction:column;align-items:center}
-.report-sticky-top{position:sticky;top:48px;z-index:15;background:var(--bg);padding:8px 1rem 4px;margin:0 -1rem 1rem;box-shadow:0 6px 16px -4px rgba(0,0,0,0.15);border-bottom:1px solid var(--border)}
+.unified-sticky{position:sticky;top:48px;z-index:15;background:var(--bg);margin-bottom:1.25rem}
+.report-sticky-top{background:var(--bg);padding:8px 1rem 4px;margin:0 -1rem;box-shadow:0 6px 16px -4px rgba(0,0,0,0.15);border-bottom:1px solid var(--border)}
 .sticky-mini-context{display:flex;align-items:center;gap:10px;padding:4px 6px 8px;border-bottom:0.5px solid var(--border);margin-bottom:6px}
 .sticky-mini-ring{width:30px;height:30px;flex-shrink:0}
 .sticky-mini-textwrap{flex:1;min-width:0;overflow:hidden}
@@ -423,7 +424,8 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
   #score-desc{font-size:11px !important}
 
   /* Sticky top compatto */
-  .report-sticky-top{padding:4px 0.5rem 0;margin:0 -0.75rem 0.75rem;top:48px}
+  .report-sticky-top{padding:4px 0.5rem 0;margin:0 -0.75rem 0.75rem}
+  .unified-sticky{margin-bottom:0.75rem}
   .mc-grid{grid-template-columns:repeat(2,1fr);gap:5px}
   .mc{padding:7px 9px;grid-template-rows:30px 24px auto}
   .mc-val{font-size:15px}
@@ -510,6 +512,7 @@ select{font-size:13px;padding:9px 12px;border:0.5px solid var(--border2);border-
 
   /* Metric cards — 2 colonne senza overflow */
   .report-sticky-top{padding:4px 0.75rem 0;margin:0 -0.75rem 0.75rem}
+  .unified-sticky{margin-bottom:0.75rem}
   #mc-sticky-wrap{padding:8px 0.75rem;overflow:visible}
   .mc-grid{grid-template-columns:repeat(2,1fr);gap:6px}
   .mc{padding:8px 10px;grid-template-rows:32px 26px auto}
@@ -740,7 +743,7 @@ body.profile-admin #admin-toggle-btn{display:none !important}
     </div>
     <!-- TESTO CENTRATO -->
     <div class="topbar-center">
-      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.26.6.18.07</span></div>
+      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.15.7.10.06</span></div>
       <div class="topbar-sub">Tool di analisi digitale per PMI · © 2026</div>
     </div>
     <div class="topbar-right">
@@ -773,12 +776,17 @@ body.profile-admin #admin-toggle-btn{display:none !important}
       <div id="my-section-wrap"></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><div style="height:1px;flex:1;background:var(--border)"></div><span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Rete vendita</span><div style="height:1px;flex:1;background:var(--border)"></div></div>
-    <!-- Mod AJ: 4 statistiche d'insieme -->
+    <!-- Mod AJ: statistiche d'insieme -->
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
       <div class="stat" style="flex:1;min-width:110px"><div class="stat-val" id="stat-active">—</div><div class="stat-lbl">online ora</div></div>
-      <div class="stat" style="flex:1;min-width:110px"><div class="stat-val" id="stat-logins-today">—</div><div class="stat-lbl">accessi oggi</div></div>
       <div class="stat" style="flex:1;min-width:110px"><div class="stat-val" id="stat-reports-today">—</div><div class="stat-lbl">report oggi</div></div>
       <div class="stat" style="flex:1;min-width:110px"><div class="stat-val" id="stat-reports-total">—</div><div class="stat-lbl">report totali</div></div>
+    </div>
+    <!-- Mod BP: accessi oggi separati per profilo -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <div class="stat" style="flex:1;min-width:110px;border-color:var(--io)"><div class="stat-val" id="stat-logins-today-senior">—</div><div class="stat-lbl">accessi oggi · Senior</div></div>
+      <div class="stat" style="flex:1;min-width:110px;border-color:var(--io)"><div class="stat-val" id="stat-logins-today-account">—</div><div class="stat-lbl">accessi oggi · Account</div></div>
+      <div class="stat" style="flex:1;min-width:110px;border-color:#BA7517"><div class="stat-val" id="stat-logins-today-expert">—</div><div class="stat-lbl">accessi oggi · Expert</div></div>
     </div>
     <!-- Mod AJ: agenti online raggruppati per persona -->
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rl);padding:12px 14px;margin-bottom:14px">
@@ -797,7 +805,19 @@ body.profile-admin #admin-toggle-btn{display:none !important}
           <button onclick="clearDBLogins()" style="font-size:11px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--red);background:transparent;color:var(--red-text);cursor:pointer"><i class="ti ti-trash" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Cancella</button>
         </div>
       </div>
-      <div id="db-logins-wrap"><div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Caricamento…</div></div>
+      <!-- Mod BP: accessi separati per profilo (Senior / Account / Expert) -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--io);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Senior</div>
+        <div id="db-logins-wrap-senior"><div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Caricamento…</div></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--io);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Account</div>
+        <div id="db-logins-wrap-account"><div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Caricamento…</div></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#BA7517;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Expert</div>
+        <div id="db-logins-wrap-expert"><div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Caricamento…</div></div>
+      </div>
     </div>
     <!-- Mod AJ: storico report con grafici + tabella -->
     <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rl);padding:12px 14px">
@@ -1058,13 +1078,9 @@ body.profile-admin #admin-toggle-btn{display:none !important}
               <i class="ti ti-sparkles"></i>Genera suggerimenti
             </button>
           </div>
-          <!-- Mod 118: selettore modalità dati API — SOLO accesso demo. Nascosto di default, mostrato via JS se _isDemo. -->
-          <div id="demo-apimode-row" style="display:none;margin-top:14px;padding:12px;border:1px dashed var(--amber);border-radius:var(--r);background:rgba(245,158,11,0.06)">
-            <div style="font-size:12px;font-weight:700;color:#9a6a00;margin-bottom:8px"><i class="ti ti-flask" style="margin-right:5px"></i>Modalità dati (solo Premium) — scegli prima dei Suggerimenti</div>
-            <div style="display:flex;gap:8px">
-              <button type="button" id="apimode-stima" onclick="setApiMode('stima')" style="flex:1;padding:9px;border-radius:var(--r);border:1.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:600">Solo stimate (AI)<br><span style="font-size:10px;font-weight:400;color:var(--text3)">non consuma credito</span></button>
-              <button type="button" id="apimode-reale" onclick="setApiMode('reale')" style="flex:1;padding:9px;border-radius:var(--r);border:1.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-weight:600">Solo reali<br><span style="font-size:10px;font-weight:400;color:var(--text3)">consuma credito DataForSEO + Serper</span></button>
-            </div>
+          <!-- Mod BO: profilo Expert usa SEMPRE dati reali — niente più scelta stima/reale. -->
+          <div id="demo-apimode-row" style="display:none;margin-top:14px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);background:rgba(29,158,117,0.06)">
+            <div style="font-size:12px;font-weight:700;color:#1D9E75"><i class="ti ti-shield-check" style="margin-right:5px"></i>Profilo Expert: dati reali (DataForSEO + Serper) — consuma credito a pagamento</div>
           </div>
         </div>
       </div>
@@ -1218,7 +1234,8 @@ body.profile-admin #admin-toggle-btn{display:none !important}
         </div>
       </div>
 
-      <!-- Score NON sticky, scorre normalmente -->
+      <!-- Mod BN: blocco sticky unificato — score + metriche + tabs, opaco, un unico blocco -->
+      <div class="unified-sticky" id="unified-sticky">
       <div class="score-wrap" style="display:flex;align-items:center;gap:14px">
         <div id="score-gauge" style="flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
@@ -1228,14 +1245,14 @@ body.profile-admin #admin-toggle-btn{display:none !important}
         </div>
       </div>
 
-      <!-- Metriche: NON sticky, scorrono via. Mod 1: più larghe degli altri box per stare su 2 sole righe -->
+      <!-- Metriche: ora parte del blocco sticky unificato. Mod 1: più larghe degli altri box per stare su 2 sole righe -->
       <div id="mc-sticky-wrap" style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--rl);padding:6px 8px;margin:0 -0.5rem 6px;overflow:visible">
         <div class="mc-grid" id="mc-grid"></div>
       </div>
 
-      <!-- STICKY: mini contesto cliente + tab -->
+      <!-- Tab (score già visibile per intero nel blocco sticky unificato: mini-context nascosto, ridondante) -->
       <div class="report-sticky-top">
-      <div class="sticky-mini-context" id="sticky-mini-context">
+      <div class="sticky-mini-context" id="sticky-mini-context" style="display:none">
         <div class="sticky-mini-ring" id="sticky-mini-gauge" style="width:auto;flex-shrink:0"></div>
         <div class="sticky-mini-textwrap">
           <div class="sticky-mini-title" id="sticky-mini-title"></div>
@@ -1262,6 +1279,7 @@ body.profile-admin #admin-toggle-btn{display:none !important}
           <button class="tab tab-accent" onclick="showTab('consigli',this)"><i class="ti ti-bulb" style="font-size:12px;margin-right:3px"></i>Quick Wins</button>
           <button class="tab tab-accent tab-opportunities" onclick="showTab('opportunita',this)"><i class="ti ti-cash" style="font-size:13px;margin-right:4px"></i>Opportunities</button>
         </div>
+      </div>
       </div>
       </div>
 
@@ -1561,7 +1579,7 @@ let trendCharts = [];
 window._trendChartInstances={};
 
 // Mod: versione app per indicatore deploy
-const APP_VERSION='v.26.6.18.07';
+const APP_VERSION='v.15.7.10.06';
 // Mod: refresh forzato ignorando cache (aggiunge timestamp all'URL)
 function hardRefresh(){
   const u=new URL(window.location.href);
@@ -2226,10 +2244,10 @@ function enterApp(role){
     const sh=document.getElementById('step-home'); if(sh)sh.style.display='block';
     const rs=document.getElementById('results'); if(rs)rs.style.display='none';
   }
-  // Mod 118: selettore modalità dati API visibile SOLO in demo; reset scelta a ogni ingresso
+  // Mod BO: profilo Expert (demo) usa SEMPRE dati reali, nessuna scelta.
   const apiRow=document.getElementById('demo-apimode-row');
   if(apiRow) apiRow.style.display=isDemo?'block':'none';
-  window._apiMode=null; resetApiModeButtons();
+  window._apiMode=isDemo?'reale':null;
   const vLbl=document.getElementById('app-version-lbl');
   if(vLbl)vLbl.textContent=APP_VERSION;
   const clearBtn=document.getElementById('btn-clear-history');
@@ -2539,70 +2557,84 @@ function _profBadge(type){
   if(t==='senior') return '<span style="font-size:8.5px;font-weight:700;color:var(--io);text-transform:uppercase">SENIOR</span>';
   return '<span style="font-size:8.5px;font-weight:700;color:var(--text3);text-transform:uppercase">'+(type||'agente')+'</span>';
 }
+// Mod BP: rende la lista "accessi per giorno" per UN SOLO gruppo di login (già filtrati per profilo).
+function _renderLoginsGroup(logins, today){
+  const giorni=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+  const mesi=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+  const fmtH=ts=>new Date(ts).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  const DAYSTART=7, DAYEND=21;
+  function timeline(times,type){
+    const col=(type==='expert'||type==='premium')?'#BA7517':'#378ADD';
+    const dots=times.map(t=>{const dt=new Date(t);const h=dt.getHours()+dt.getMinutes()/60;const pct=Math.max(0,Math.min(100,((h-DAYSTART)/(DAYEND-DAYSTART))*100));return '<div style="position:absolute;left:'+pct.toFixed(1)+'%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:'+col+'"></div>';}).join('');
+    return '<div style="position:relative;height:18px;background:var(--bg2);border-radius:6px">'+dots+'</div>';
+  }
+  function dur(times){
+    if(times.length<2)return '1 accesso';
+    const ms=times[times.length-1]-times[0];const min=Math.round(ms/60000);
+    return min<60?(min+'min'):(Math.floor(min/60)+'h '+(min%60)+'min');
+  }
+  if(!logins.length) return '<div style="font-size:12px;color:var(--text3);text-align:center;padding:14px">Nessun accesso registrato.</div>';
+  const byDay={};
+  logins.forEach(lg=>{
+    const dt=new Date(lg.created_at);
+    const dk=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    (byDay[dk]=byDay[dk]||[]).push(lg);
+  });
+  const dayKeys=Object.keys(byDay).sort().reverse();
+  return dayKeys.map(dk=>{
+    const items=byDay[dk];
+    const dt=new Date(dk+'T00:00:00');
+    const isToday=dt.getTime()===today.getTime();
+    const label=isToday?'Oggi':(giorni[dt.getDay()].charAt(0).toUpperCase()+giorni[dt.getDay()].slice(1));
+    const dateStr=dt.getDate()+' '+mesi[dt.getMonth()];
+    const byAgent={};
+    items.forEach(lg=>{const n=lg.agent_name||'—';if(!byAgent[n])byAgent[n]={times:[],type:lg.login_type};byAgent[n].times.push(new Date(lg.created_at).getTime());});
+    const agentRows=Object.keys(byAgent).sort().map(n=>{
+      const o=byAgent[n]; const times=o.times.sort((a,b)=>a-b); const acc=times.length;
+      const ini=n.split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+      return '<div style="display:grid;grid-template-columns:150px 56px 1fr 130px;align-items:center;gap:10px;padding:5px 0">'+
+        '<div style="display:flex;align-items:center;gap:7px;min-width:0"><div style="width:24px;height:24px;border-radius:50%;background:rgba(0,140,200,0.1);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--io);flex-shrink:0">'+ini+'</div><div style="min-width:0"><div style="font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+n+'</div>'+_profBadge(o.type)+'</div></div>'+
+        '<div style="text-align:center"><div style="font-size:13px;font-weight:700">'+acc+'</div><div style="font-size:8.5px;color:var(--text3)">accessi</div></div>'+
+        timeline(times,o.type)+
+        '<div style="text-align:right"><div style="font-size:11px;font-weight:600;white-space:nowrap">'+fmtH(times[0])+' → '+fmtH(times[times.length-1])+'</div><div style="font-size:8.5px;color:var(--text3)">'+dur(times)+'</div></div>'+
+      '</div>';
+    }).join('');
+    const nAg=Object.keys(byAgent).length;
+    return '<div style="margin-bottom:14px">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:0.5px solid var(--border)"><span style="font-size:12px;font-weight:700">'+label+' · '+dateStr+'</span><span style="font-size:11px;color:var(--text2)">'+items.length+' access'+(items.length===1?'o':'i')+' · '+nAg+' agent'+(nAg===1?'e':'i')+'</span><span style="margin-left:auto;font-size:9px;color:var(--text3)">7—21</span></div>'+
+      agentRows+
+    '</div>';
+  }).join('');
+}
 async function loadDBLogins(){
-  const wrap=document.getElementById('db-logins-wrap');if(!wrap)return;
-  wrap.innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Caricamento...</div>';
+  const wSenior=document.getElementById('db-logins-wrap-senior');
+  const wAccount=document.getElementById('db-logins-wrap-account');
+  const wExpert=document.getElementById('db-logins-wrap-expert');
+  if(!wSenior||!wAccount||!wExpert)return;
+  [wSenior,wAccount,wExpert].forEach(w=>w.innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Caricamento...</div>');
   try{
     const r=await fetch('/api/admin/logins',{headers:{'x-session-token':getToken()}});
     const d=await r.json();
-    if(!d.dbEnabled){wrap.innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Database non connesso. Verifica la variabile DATABASE_URL su Render.</div>';return;}
-    if(!d.logins||d.logins.length===0){wrap.innerHTML='<div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Nessun accesso registrato.</div>';return;}
+    if(!d.dbEnabled){const msg='<div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Database non connesso. Verifica la variabile DATABASE_URL su Render.</div>';wSenior.innerHTML=msg;wAccount.innerHTML=msg;wExpert.innerHTML=msg;return;}
+    if(!d.logins||d.logins.length===0){const msg='<div style="font-size:12px;color:var(--text3);text-align:center;padding:16px">Nessun accesso registrato.</div>';wSenior.innerHTML=msg;wAccount.innerHTML=msg;wExpert.innerHTML=msg;return;}
     const today=new Date(); today.setHours(0,0,0,0);
     // Mod AN: separo gli accessi di Sergio dal resto della rete.
     window._myLogins=d.logins.filter(lg=>(lg.agent_name||'')===ADMIN_SELF_NAME);
     const netLogins=d.logins.filter(lg=>(lg.agent_name||'')!==ADMIN_SELF_NAME);
     _renderMySection(); // aggiorna la sezione personale (accessi + report)
-    let loginsToday=0;
-    const byDay={};
-    netLogins.forEach(lg=>{
-      const dt=new Date(lg.created_at);
-      const dk=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-      (byDay[dk]=byDay[dk]||[]).push(lg);
-      if(dt>=today) loginsToday++;
-    });
-    const sLT=document.getElementById('stat-logins-today'); if(sLT)sLT.textContent=loginsToday;
-    const dayKeys=Object.keys(byDay).sort().reverse();
-    const giorni=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
-    const mesi=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
-    const fmtH=ts=>new Date(ts).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
-    // mini-timeline (fascia 7-21) degli orari di accesso
-    const DAYSTART=7, DAYEND=21;
-    function timeline(times,type){
-      const col=(type==='expert'||type==='premium')?'#BA7517':'#378ADD';
-      const dots=times.map(t=>{const dt=new Date(t);const h=dt.getHours()+dt.getMinutes()/60;const pct=Math.max(0,Math.min(100,((h-DAYSTART)/(DAYEND-DAYSTART))*100));return '<div style="position:absolute;left:'+pct.toFixed(1)+'%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:'+col+'"></div>';}).join('');
-      return '<div style="position:relative;height:18px;background:var(--bg2);border-radius:6px">'+dots+'</div>';
-    }
-    function dur(times){
-      if(times.length<2)return '1 accesso';
-      const ms=times[times.length-1]-times[0];const min=Math.round(ms/60000);
-      return min<60?(min+'min'):(Math.floor(min/60)+'h '+(min%60)+'min');
-    }
-    const html=dayKeys.map(dk=>{
-      const items=byDay[dk];
-      const dt=new Date(dk+'T00:00:00');
-      const isToday=dt.getTime()===today.getTime();
-      const label=isToday?'Oggi':(giorni[dt.getDay()].charAt(0).toUpperCase()+giorni[dt.getDay()].slice(1));
-      const dateStr=dt.getDate()+' '+mesi[dt.getMonth()];
-      const byAgent={};
-      items.forEach(lg=>{const n=lg.agent_name||'—';if(!byAgent[n])byAgent[n]={times:[],type:lg.login_type};byAgent[n].times.push(new Date(lg.created_at).getTime());});
-      const agentRows=Object.keys(byAgent).sort().map(n=>{
-        const o=byAgent[n]; const times=o.times.sort((a,b)=>a-b); const acc=times.length;
-        const ini=n.split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
-        return '<div style="display:grid;grid-template-columns:150px 56px 1fr 130px;align-items:center;gap:10px;padding:5px 0">'+
-          '<div style="display:flex;align-items:center;gap:7px;min-width:0"><div style="width:24px;height:24px;border-radius:50%;background:rgba(0,140,200,0.1);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--io);flex-shrink:0">'+ini+'</div><div style="min-width:0"><div style="font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+n+'</div>'+_profBadge(o.type)+'</div></div>'+
-          '<div style="text-align:center"><div style="font-size:13px;font-weight:700">'+acc+'</div><div style="font-size:8.5px;color:var(--text3)">accessi</div></div>'+
-          timeline(times,o.type)+
-          '<div style="text-align:right"><div style="font-size:11px;font-weight:600;white-space:nowrap">'+fmtH(times[0])+' → '+fmtH(times[times.length-1])+'</div><div style="font-size:8.5px;color:var(--text3)">'+dur(times)+'</div></div>'+
-        '</div>';
-      }).join('');
-      const nAg=Object.keys(byAgent).length;
-      return '<div style="margin-bottom:14px">'+
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:0.5px solid var(--border)"><span style="font-size:12px;font-weight:700">'+label+' · '+dateStr+'</span><span style="font-size:11px;color:var(--text2)">'+items.length+' access'+(items.length===1?'o':'i')+' · '+nAg+' agent'+(nAg===1?'e':'i')+'</span><span style="margin-left:auto;font-size:9px;color:var(--text3)">7—21</span></div>'+
-        agentRows+
-      '</div>';
-    }).join('');
-    wrap.innerHTML=html+'<div style="font-size:10px;color:var(--text3);text-align:right;margin-top:2px">'+netLogins.length+' accessi rete · '+(window._myLogins?window._myLogins.length:0)+' miei</div>';
-  }catch(e){wrap.innerHTML='<div style="font-size:12px;color:var(--red-text);text-align:center;padding:16px">Errore caricamento: '+e.message+'</div>';}
+    // Mod BP: 3 gruppi separati per profilo — Senior / Account / Expert.
+    const isExpertType=t=>t==='expert'||t==='premium';
+    const seniorLogins=netLogins.filter(lg=>lg.login_type==='senior');
+    const accountLogins=netLogins.filter(lg=>lg.login_type==='account');
+    const expertLogins=netLogins.filter(lg=>isExpertType(lg.login_type));
+    const countToday=arr=>arr.filter(lg=>new Date(lg.created_at)>=today).length;
+    const sS=document.getElementById('stat-logins-today-senior'); if(sS)sS.textContent=countToday(seniorLogins);
+    const sA=document.getElementById('stat-logins-today-account'); if(sA)sA.textContent=countToday(accountLogins);
+    const sE=document.getElementById('stat-logins-today-expert'); if(sE)sE.textContent=countToday(expertLogins);
+    wSenior.innerHTML=_renderLoginsGroup(seniorLogins,today);
+    wAccount.innerHTML=_renderLoginsGroup(accountLogins,today);
+    wExpert.innerHTML=_renderLoginsGroup(expertLogins,today);
+  }catch(e){const msg='<div style="font-size:12px;color:var(--red-text);text-align:center;padding:16px">Errore caricamento: '+e.message+'</div>';wSenior.innerHTML=msg;wAccount.innerHTML=msg;wExpert.innerHTML=msg;}
 }
 // Mod AN: render della sezione personale (i miei report + i miei accessi).
 function _renderMySection(){
@@ -4370,7 +4402,7 @@ function showTab(id,btn){
   // 2) corretto dopo 80ms (per pannelli con layout ritardato come Social/CWV: immagini, grafici, fonts)
   function doScroll(){
     const panel=document.getElementById('p-'+id);
-    const sticky=document.querySelector('.report-sticky-top');
+    const sticky=document.querySelector('.unified-sticky');
     const topbarH=document.querySelector('.topbar')?.offsetHeight||48;
     const stickyH=sticky?sticky.offsetHeight:0;
     if(panel){
@@ -4526,20 +4558,7 @@ function restoreFormFields(){
 }
 
 // ── SUGGEST ───────────────────────────────────────────
-// Mod 118: modalità dati API (solo demo). 'stima' = nessuna API a pagamento; 'reale' = DataForSEO + Serper.
-function resetApiModeButtons(){
-  const s=document.getElementById('apimode-stima'), r=document.getElementById('apimode-reale');
-  [s,r].forEach(b=>{ if(!b)return; b.style.borderColor='var(--border2)'; b.style.background='transparent'; b.style.color='var(--text2)'; });
-}
-function setApiMode(mode){
-  if(mode==='reale'){
-    if(!confirm('Modalità "Solo reali": le keyword e le posizioni verranno richieste a DataForSEO e Serper.\n\nQuesto CONSUMA credito a pagamento. Procedere?')) return;
-  }
-  window._apiMode=mode;
-  resetApiModeButtons();
-  const active=document.getElementById('apimode-'+mode);
-  if(active){ active.style.borderColor='var(--io)'; active.style.background='rgba(0,174,239,0.08)'; active.style.color='var(--io)'; }
-}
+// Mod BO: profilo Expert usa sempre e solo dati reali (DataForSEO + Serper); niente più selettore stima/reale.
 // #120: dialog di conferma a due scelte (Promise<bool>). resolve(true)=azione principale, false=annulla.
 function confirmDialog(opts){
   opts=opts||{};
@@ -4599,12 +4618,7 @@ async function runSuggest(){
   if(!provincia){document.getElementById('f-prov-input').focus();alert('Seleziona la provincia.');return;}
   if(!comune){document.getElementById('f-comune-input').focus();alert('Seleziona il comune.');return;}
   const _isDemoNow=window._isDemo||sessionStorage.getItem('seo_is_demo')==='1';
-  if(_isDemoNow && !window._apiMode){
-    const row=document.getElementById('demo-apimode-row');
-    if(row){ row.scrollIntoView({behavior:'smooth',block:'center'}); row.style.transition='box-shadow .2s'; row.style.boxShadow='0 0 0 3px rgba(245,158,11,0.4)'; setTimeout(()=>{row.style.boxShadow='none';},1600); }
-    alert('Modalità Premium: scegli prima la modalità dati ("Solo stimate" oppure "Solo reali").');
-    return;
-  }
+  if(_isDemoNow) window._apiMode='reale';
   if(!rilevanza.length){alert('Seleziona almeno una rilevanza geografica.');return;}
   if(!geoSelectedAreas||geoSelectedAreas.length===0){
     const btns=document.getElementById('comuni-select-btns');
@@ -5030,9 +5044,9 @@ function _quickErr(msg){
   return '<div style="text-align:center;padding:20px;border:0.5px solid var(--border);border-radius:10px"><div style="font-size:13.5px;font-weight:700;margin-bottom:6px">Analisi non riuscita</div><div style="font-size:12px;color:var(--text2)">'+(msg||'')+'</div></div>';
 }
 function _srcBadge(src){
-  return src==='reale'
-    ? '<span style="font-size:9px;font-weight:700;color:#1D9E75;background:rgba(29,158,117,0.12);padding:2px 7px;border-radius:7px">dato reale</span>'
-    : '<span style="font-size:9px;font-weight:700;color:#BA7517;background:rgba(186,117,23,0.12);padding:2px 7px;border-radius:7px">stima</span>';
+  if(src==='reale') return '<span style="font-size:9px;font-weight:700;color:#1D9E75;background:rgba(29,158,117,0.12);padding:2px 7px;border-radius:7px">dato reale</span>';
+  if(src==='non_disponibile') return '<span style="font-size:9px;font-weight:700;color:var(--text3);background:var(--bg2);padding:2px 7px;border-radius:7px">non disponibile</span>';
+  return '<span style="font-size:9px;font-weight:700;color:#BA7517;background:rgba(186,117,23,0.12);padding:2px 7px;border-radius:7px">stima</span>';
 }
 function _quickComp(c){
   const v=(c||'').toLowerCase();
@@ -5043,7 +5057,8 @@ function _quickComp(c){
 function _renderQuickAds(d){
   const items=d.items||[];
   const it=items[0]||{};
-  const hasStima=items.some(x=>x.source!=='reale');
+  const hasStima=items.some(x=>x.source==='stima');
+  const hasNonDisp=items.some(x=>x.source==='non_disponibile');
   let h='<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><i class="ti ti-ad-2" style="font-size:20px;color:var(--io)"></i><span style="font-size:17px;font-weight:700">Analisi Ads — '+(it.kw||'keyword')+'</span></div>';
   h+='<div style="font-size:12px;color:var(--text2);margin-bottom:16px">Volume di ricerca, CPC e concorrenza per questa keyword.</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">'+
@@ -5053,13 +5068,15 @@ function _renderQuickAds(d){
   '</div>';
   h+='<div style="display:flex;justify-content:flex-end;margin-bottom:4px">'+_srcBadge(it.source)+'</div>';
   if(hasStima){ h+='<div style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:11px 13px;background:rgba(186,117,23,0.08);border-radius:9px"><i class="ti ti-info-circle" style="font-size:16px;color:#BA7517;flex-shrink:0;margin-top:1px"></i><span style="font-size:11.5px;color:var(--text2);line-height:1.5">Dato di <b>stima</b>: la keyword ha poche ricerche o il dato reale non è disponibile, quindi è una stima di mercato, non un valore misurato.</span></div>'; }
+  if(hasNonDisp){ h+='<div style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:11px 13px;background:var(--bg2);border-radius:9px"><i class="ti ti-info-circle" style="font-size:16px;color:var(--text3);flex-shrink:0;margin-top:1px"></i><span style="font-size:11.5px;color:var(--text2);line-height:1.5"><b>Dato non disponibile</b>: i volumi di ricerca per questa keyword sono troppo bassi (o la fonte dati reale non copre questa zona/settore) per una rilevazione affidabile.</span></div>'; }
   return h;
 }
 function _renderQuickSeo(d){
   const pos=d.positions||[];
   const topN=pos.filter(p=>p.pos!=null&&p.pos<=10).length;
-  let h='<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><i class="ti ti-chart-arcs" style="font-size:20px;color:var(--io)"></i><span style="font-size:17px;font-weight:700">Stima SEO</span></div>';
+  let h='<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><i class="ti ti-chart-arcs" style="font-size:20px;color:var(--io)"></i><span style="font-size:17px;font-weight:700">'+(d.profile==='expert'?'Analisi SEO — dati reali':'Stima SEO')+'</span></div>';
   h+='<div style="font-size:12px;color:var(--text2);margin-bottom:16px">Stato SEO del sito: posizione sulle ricerche, qualità SEO e traffico organico.</div>';
+  if(d.realDataNote){ h+='<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;padding:11px 13px;background:var(--bg2);border-radius:9px"><i class="ti ti-info-circle" style="font-size:16px;color:var(--text3);flex-shrink:0;margin-top:1px"></i><span style="font-size:11.5px;color:var(--text2);line-height:1.5">'+d.realDataNote+'</span></div>'; }
   h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">'+
     '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Punteggio SEO sito</div><div style="font-size:22px;font-weight:700">'+(d.seoScore!=null?d.seoScore:'—')+'<span style="font-size:12px;color:var(--text3)">/100</span></div></div>'+
     '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Traffico organico/mese</div><div style="font-size:22px;font-weight:700">~'+(d.trafficoOrganico!=null?Number(d.trafficoOrganico).toLocaleString('it-IT'):'—')+'</div></div>'+
