@@ -743,7 +743,7 @@ body.profile-admin #admin-toggle-btn{display:none !important}
     </div>
     <!-- TESTO CENTRATO -->
     <div class="topbar-center">
-      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.15.7.11.55</span></div>
+      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.15.7.12.26</span></div>
       <div class="topbar-sub">Tool di analisi digitale per PMI · © 2026</div>
     </div>
     <div class="topbar-right">
@@ -914,6 +914,10 @@ body.profile-admin #admin-toggle-btn{display:none !important}
               <div class="url-prefix">https://</div>
               <input class="url-input" id="quick-ads-website" type="text" placeholder="www.nomesito.it" />
             </div>
+          </div>
+          <div class="field-wrap">
+            <div class="field-label">Città <span style="font-weight:400;color:var(--text3)">(facoltativa — migliora la precisione degli annunci reali)</span></div>
+            <input class="url-input" id="quick-ads-city" type="text" placeholder="es. Roma" style="width:100%;border:1px solid var(--border);border-radius:9px;padding:10px 12px" />
           </div>
           <div class="field-wrap" style="margin-top:12px">
             <div class="field-label">Keyword</div>
@@ -1586,7 +1590,7 @@ let trendCharts = [];
 window._trendChartInstances={};
 
 // Mod: versione app per indicatore deploy
-const APP_VERSION='v.15.7.11.55';
+const APP_VERSION='v.15.7.12.26';
 // Mod: refresh forzato ignorando cache (aggiunge timestamp all'URL)
 function hardRefresh(){
   const u=new URL(window.location.href);
@@ -5034,20 +5038,21 @@ function quickTab(tab){
 // Esecuzione analisi veloce (1 keyword, settore/città vuoti per velocità).
 async function runQuick(mode){
   const box=document.getElementById('quick-result'); if(!box) return;
-  let kw, website='';
+  let kw, website='', city='';
   if(mode==='seo'){
     website=(document.getElementById('quick-seo-website')?.value||'').trim().replace(/^https?:\/\//,'');
     kw=(document.getElementById('quick-seo-kw')?.value||'').trim();
     if(!website){ box.innerHTML=_quickErr('Inserisci il dominio del cliente.'); return; }
   } else {
     website=(document.getElementById('quick-ads-website')?.value||'').trim().replace(/^https?:\/\//,'');
+    city=(document.getElementById('quick-ads-city')?.value||'').trim();
     kw=(document.getElementById('quick-ads-kw')?.value||'').trim();
   }
   if(!kw){ box.innerHTML=_quickErr('Inserisci una keyword.'); return; }
   box.innerHTML='<div style="text-align:center;padding:24px;color:var(--text2)"><i class="ti ti-loader" style="font-size:22px;animation:spin 1s linear infinite"></i><div style="margin-top:8px;font-size:12.5px">Analisi in corso…</div></div>';
   try{
     if(mode==='ads'){
-      const r=await fetch('/api/quick-ads',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify({keywords:[kw],settore:'',city:'',website})});
+      const r=await fetch('/api/quick-ads',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify({keywords:[kw],settore:'',city,website})});
       const d=await r.json();
       box.innerHTML=d.error?_quickErr(d.error):_renderQuickAds(d);
     } else {
@@ -5090,7 +5095,7 @@ function buildSerpMockupHtml(p, clientLabel){
 function buildAdsMockupHtml(ads, clientInAds, clientLabel){
   clientLabel = clientLabel || 'il tuo cliente';
   if(!Array.isArray(ads) || !ads.length){
-    return '<div style="margin-top:10px;padding:11px 13px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);font-size:11.5px;color:var(--text2)">Nessun annuncio a pagamento rilevato ora su questa keyword.</div>';
+    return '<div style="margin-top:10px;padding:11px 13px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);font-size:11.5px;color:var(--text2)">Nessun annuncio a pagamento rilevato ora su questa keyword (dato reale — Google non sta mostrando annunci in questo momento su questa zona/keyword).</div>';
   }
   const rows = ads.map(function(a){
     const dom=a.domain||(a.link||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
