@@ -1772,6 +1772,27 @@ app.post('/api/quick-ads', async (req, res) => {
   const isExpert = _sess && (_sess.profile === 'expert' || _sess.isDemo);
   try {
     const kwLine = keywords.map(k => (typeof k === 'string' ? k : (k.kw || k.keyword))).filter(Boolean).slice(0, 20);
+
+    // Mod BO: profilo Expert → SOLO dati reali (DataForSEO), niente stima AI, mai fallback.
+    if (isExpert) {
+      let items = kwLine.map(kw => ({ kw, volume: null, cpc: null, competition: null }));
+      try {
+        const base = items.map(it => ({ kw: it.kw }));
+        const real = await withTimeout(enrichKeywordsWithRealData(base), 20000, { list: base, realUsed: false });
+        const realList = real && Array.isArray(real.list) ? real.list : base;
+        items = items.map(it => {
+          const m = realList.find(rr => (rr.kw || '').toLowerCase() === (it.kw || '').toLowerCase());
+          if (m && m.dataSource === 'dataforseo' && m.volume != null) {
+            return { kw: it.kw, volume: m.volume, cpc: m.cpc != null ? m.cpc : null, competition: m.competition || null, source: 'reale' };
+          }
+          return { kw: it.kw, volume: null, cpc: null, competition: null, source: 'non_disponibile' };
+        });
+      } catch (_) {
+        items = items.map(it => ({ ...it, source: 'non_disponibile' }));
+      }
+      return res.json({ ok: true, items, profile: 'expert' });
+    }
+
     const prompt = `Sei un esperto Google Ads per il mercato italiano. Per ognuna di queste keyword${settore ? ' (settore: ' + settore + ')' : ''}${city ? ' (zona: ' + city + ')' : ''} stima volume di ricerca mensile e CPC realistici:
 ${kwLine.map((k, i) => (i + 1) + '. ' + k).join('\n')}
 Rispondi SOLO con JSON valido, nessun testo attorno:
@@ -1788,22 +1809,7 @@ I valori sono stime di mercato realistiche per zona e settore.`;
     const parsed = JSON.parse(raw);
     let items = Array.isArray(parsed.items) ? parsed.items : [];
     items = items.map(it => ({ ...it, source: 'stima' }));
-    // Expert: provo i dati reali DataForSEO dove disponibili.
-    if (isExpert && typeof enrichKeywordsWithRealData === 'function') {
-      try {
-        const base = items.map(it => ({ kw: it.kw, volume: it.volume, cpc: it.cpc, competition: it.competition }));
-        const real = await withTimeout(enrichKeywordsWithRealData(base).catch(() => null), 20000, null);
-        const realArr = real && Array.isArray(real.keywords) ? real.keywords : (Array.isArray(real) ? real : null);
-        if (realArr) {
-          items = items.map(it => {
-            const m = realArr.find(rr => (rr.kw || '').toLowerCase() === (it.kw || '').toLowerCase());
-            if (m && m.volume != null && m.realUsed !== false) return { ...it, volume: m.volume, cpc: m.cpc != null ? m.cpc : it.cpc, source: 'reale' };
-            return it;
-          });
-        }
-      } catch (_) {}
-    }
-    res.json({ ok: true, items, profile: isExpert ? 'expert' : 'agent' });
+    res.json({ ok: true, items, profile: 'agent' });
   } catch (err) {
     return res.status(500).json({ error: traduciErroreAnthropic(err) });
   }
@@ -1821,6 +1827,26 @@ app.post('/api/quick-seo', async (req, res) => {
   const isExpert = _sess && (_sess.profile === 'expert' || _sess.isDemo);
   try {
     const kwLine = (Array.isArray(keywords) ? keywords : []).map(k => (typeof k === 'string' ? k : (k.kw || k.keyword))).filter(Boolean).slice(0, 15);
+
+    // Mod BO: profilo Expert → SOLO posizioni organiche reali (Serper), niente punteggio/traffico stimato.
+    if (isExpert) {
+      let positions = kwLine.map(kw => ({ kw, pos: null, source: 'non_disponibile' }));
+      try {
+        const loc = [city].filter(Boolean).join(', ') || 'Italy';
+        const realSerp = await withTimeout(buildOrganicSerp(kwLine.map(k => ({ kw: k })), website, { gl: 'it', hl: 'it', location: loc }), 20000, { enabled: false });
+        if (realSerp && realSerp.enabled) {
+          positions = positions.map(p => {
+            const m = realSerp.results.find(rr => (rr.kw || '').toLowerCase() === (p.kw || '').toLowerCase());
+            if (m) return { kw: p.kw, pos: m.position, source: 'reale' };
+            return p;
+          });
+        }
+      } catch (_) {}
+      return res.json({ ok: true, profile: 'expert',
+        seoScore: null, onpage: null, tecnico: null, autorita: null, trafficoOrganico: null,
+        positions, realDataNote: 'Punteggio SEO e traffico organico non disponibili in modalità dati reali: richiedono un\'analisi completa. Le posizioni mostrate sono rilevazioni reali su Google.' });
+    }
+
     const prompt = `Sei un esperto SEO per il mercato italiano. Analizza il sito "${website}"${settore ? ' (settore: ' + settore + ')' : ''}${city ? ' (zona: ' + city + ')' : ''}.
 Stima in sintesi lo stato SEO. Per le keyword indicate stima la posizione organica probabile su Google.
 Keyword: ${kwLine.join(', ') || '(generiche di settore)'}
@@ -1837,21 +1863,7 @@ I valori sono stime realistiche di mercato.`;
     let raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(raw);
     let positions = Array.isArray(parsed.positions) ? parsed.positions.map(p => ({ ...p, source: 'stima' })) : [];
-    // Expert: posizione organica REALE via Serper dove disponibile.
-    if (isExpert && typeof buildOrganicSerp === 'function' && kwLine.length) {
-      try {
-        const loc = [city].filter(Boolean).join(', ') || 'Italy';
-        const realSerp = await withTimeout(buildOrganicSerp(kwLine.map(k => ({ kw: k })), website, { gl: 'it', hl: 'it', location: loc }).catch(() => null), 20000, null);
-        if (realSerp && Array.isArray(realSerp.results)) {
-          positions = positions.map(p => {
-            const m = realSerp.results.find(rr => (rr.kw || '').toLowerCase() === (p.kw || '').toLowerCase());
-            if (m && m.position != null) return { kw: p.kw, pos: m.position, source: 'reale' };
-            return p;
-          });
-        }
-      } catch (_) {}
-    }
-    res.json({ ok: true, profile: isExpert ? 'expert' : 'agent',
+    res.json({ ok: true, profile: 'agent',
       seoScore: parsed.seoScore, onpage: parsed.onpage, tecnico: parsed.tecnico, autorita: parsed.autorita,
       trafficoOrganico: parsed.trafficoOrganico, positions });
   } catch (err) {
