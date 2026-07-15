@@ -1833,9 +1833,13 @@ app.post('/api/quick-ads', async (req, res) => {
       if (website) {
         try {
           const loc = [city].filter(Boolean).join(', ') || 'Italy';
-          const ctx = await withTimeout(serperKeywordContext(kwLine[0], website, 'it', 'it', loc), 10000, null);
-          if (ctx) { items[0] = { ...items[0], ads: ctx.ads, clientInAds: ctx.clientInAds }; }
-        } catch (_) {}
+          const ctx = await withTimeout(serperKeywordContext(kwLine[0], website, 'it', 'it', loc), 15000, null);
+          if (ctx) { items[0] = { ...items[0], ads: ctx.ads, clientInAds: ctx.clientInAds, adsStatus: 'ok' }; }
+          else { items[0] = { ...items[0], ads: [], clientInAds: false, adsStatus: 'error' }; }
+        } catch (e) {
+          console.error('[ADS-MOCKUP] errore recupero annunci:', e.message);
+          items[0] = { ...items[0], ads: [], clientInAds: false, adsStatus: 'error' };
+        }
       }
       return res.json({ ok: true, items, profile: 'expert' });
     }
