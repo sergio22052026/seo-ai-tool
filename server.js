@@ -897,6 +897,45 @@ function normDomain(u) {
   } catch (e) { return ''; }
 }
 
+// Mod BR: come serperPosition, ma in più restituisce il contesto per i mockup SERP/Ads
+// (top10 organico, lista dal cliente in giù se in prima pagina, annunci a pagamento attuali).
+// Nessuna chiamata Serper aggiuntiva: usa la stessa risposta già richiesta con num:100.
+async function serperKeywordContext(keyword, targetDomain, gl, hl, location) {
+  const tgt = normDomain(targetDomain);
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 8000);
+  let r;
+  try {
+    r = await fetch('https://google.serper.dev/search', {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'X-API-KEY': SERPER_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: keyword, gl: gl || 'it', hl: hl || 'it', location: location || 'Italy', num: 100 })
+    });
+  } finally { clearTimeout(to); }
+  if (!r.ok) { console.log('[SERPER] HTTP ' + r.status + ' per kw "' + keyword + '"'); throw new Error('serper http ' + r.status); }
+  const j = await r.json();
+  const organic = Array.isArray(j.organic) ? j.organic : [];
+  let position = null, occurrences = 0, url = '', title = '';
+  for (let i = 0; i < organic.length; i++) {
+    const item = organic[i];
+    const d = normDomain(item.link || item.domain || '');
+    if (tgt && d && (d === tgt || d.endsWith('.' + tgt) || tgt.endsWith('.' + d))) {
+      occurrences++;
+      if (!position) { position = i + 1; url = item.link || ''; title = item.title || ''; }
+    }
+  }
+  const mapItem = (it, i) => ({ position: i + 1, title: it.title || '', link: it.link || '', domain: normDomain(it.link || '') });
+  const top10 = organic.slice(0, 10).map(mapItem);
+  const contextList = (position && position <= 10) ? organic.slice(position - 1, 10).map((it, i) => ({ position: position + i, title: it.title || '', link: it.link || '', domain: normDomain(it.link || '') })) : null;
+  const ads = (Array.isArray(j.ads) ? j.ads : []).slice(0, 5).map(a => {
+    const d = normDomain(a.link || '');
+    const isClient = !!(tgt && d && (d === tgt || d.endsWith('.' + tgt) || tgt.endsWith('.' + d)));
+    return { title: a.title || '', link: a.link || '', domain: d, isClient };
+  });
+  const clientInAds = ads.some(a => a.isClient);
+  return { position, occurrences, url, title, top10, contextList, ads, clientInAds };
+}
+
 // interroga Serper per UNA keyword e ritorna la posizione del dominio target (o null)
 async function serperPosition(keyword, targetDomain, gl, hl, location) {
   const tgt = normDomain(targetDomain);
@@ -1208,15 +1247,15 @@ async function buildOrganicSerp(selectedKeywords, website, geo) {
   const BATCH = 5;
   const one = async (kw) => {
     try {
-      const hit = await serperPosition(kw, website, geo?.gl, geo?.hl, geo?.location);
-      return { kw, position: hit ? hit.position : null, url: hit ? hit.url : '', found: !!hit, occurrences: hit ? (hit.occurrences || 1) : 0 };
+      const hit = await serperKeywordContext(kw, website, geo?.gl, geo?.hl, geo?.location);
+      return { kw, position: hit.position, url: hit.url, found: hit.position != null, occurrences: hit.occurrences || 0, top10: hit.top10, contextList: hit.contextList, ads: hit.ads, clientInAds: hit.clientInAds };
     } catch (e) {
-      return { kw, position: null, url: '', found: false, error: true };
+      return { kw, position: null, url: '', found: false, error: true, top10: null, contextList: null, ads: [], clientInAds: false };
     }
   };
   for (let i = 0; i < kws.length; i += BATCH) {
     const slice = kws.slice(i, i + BATCH);
-    const batchRes = await Promise.all(slice.map(kw => withTimeout(one(kw), 7000, { kw, position: null, url: '', found: false, error: true })));
+    const batchRes = await Promise.all(slice.map(kw => withTimeout(one(kw), 9000, { kw, position: null, url: '', found: false, error: true, top10: null, contextList: null, ads: [], clientInAds: false })));
     results.push(...batchRes);
   }
   return { enabled: true, target: tgt, results };
@@ -1763,7 +1802,7 @@ Fornisci stime realistiche e coerenti col mercato italiano (NON inventare precis
 // ── MOD BI: sezione Ads standalone (CPC + volume). Reale su Expert (DataForSEO), stima su Senior/Account. ──
 app.post('/api/quick-ads', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
-  const { keywords, settore, city } = req.body || {};
+  const { keywords, settore, city, website } = req.body || {};
   if (!Array.isArray(keywords) || !keywords.length) return res.status(400).json({ error: 'keyword mancanti' });
   const usedKey = getApiKey(req);
   if (!usedKey) return res.status(500).json({ error: 'Nessuna chiave API configurata.' });
@@ -1789,6 +1828,14 @@ app.post('/api/quick-ads', async (req, res) => {
         });
       } catch (_) {
         items = items.map(it => ({ ...it, source: 'non_disponibile' }));
+      }
+      // Mod BR: mockup annunci Ads reali (Serper) — chi compra pubblicità oggi su questa keyword.
+      if (website) {
+        try {
+          const loc = [city].filter(Boolean).join(', ') || 'Italy';
+          const ctx = await withTimeout(serperKeywordContext(kwLine[0], website, 'it', 'it', loc), 10000, null);
+          if (ctx) { items[0] = { ...items[0], ads: ctx.ads, clientInAds: ctx.clientInAds }; }
+        } catch (_) {}
       }
       return res.json({ ok: true, items, profile: 'expert' });
     }
@@ -1837,7 +1884,7 @@ app.post('/api/quick-seo', async (req, res) => {
         if (realSerp && realSerp.enabled) {
           positions = positions.map(p => {
             const m = realSerp.results.find(rr => (rr.kw || '').toLowerCase() === (p.kw || '').toLowerCase());
-            if (m) return { kw: p.kw, pos: m.position, source: 'reale' };
+            if (m) return { kw: p.kw, pos: m.position, source: 'reale', top10: m.top10 || null, contextList: m.contextList || null };
             return p;
           });
         }
