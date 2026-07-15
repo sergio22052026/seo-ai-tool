@@ -147,7 +147,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sel-more-btn:hover{background:var(--io);color:#fff}
 .sel-more-btn:disabled{opacity:.5;cursor:not-allowed}
 .sel-item,#kw-list .sel-item,#comp-list-sel .sel-item{display:flex !important;align-items:flex-start;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r);margin-bottom:8px;cursor:pointer;transition:all .15s;height:90px !important;min-height:90px !important;max-height:90px !important;box-sizing:border-box !important;overflow:hidden !important}
-.sel-item:hover{border-color:var(--io)}
+.sel-item.kw-hidden{display:none !important}
 .sel-item.selected{border-color:var(--io);background:rgba(0,174,239,0.05)}
 .sel-item input[type=checkbox]{width:16px;height:16px;accent-color:var(--io);cursor:pointer;flex-shrink:0;margin-top:2px}
 .sel-item-title{font-size:13px;font-weight:600;margin-bottom:2px}
@@ -743,7 +743,7 @@ body.profile-admin #admin-toggle-btn{display:none !important}
     </div>
     <!-- TESTO CENTRATO -->
     <div class="topbar-center">
-      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.15.7.10.51</span></div>
+      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.15.7.11.55</span></div>
       <div class="topbar-sub">Tool di analisi digitale per PMI · © 2026</div>
     </div>
     <div class="topbar-right">
@@ -907,8 +907,15 @@ body.profile-admin #admin-toggle-btn{display:none !important}
 
         <!-- Pannello Ads -->
         <div id="quick-panel-ads" style="display:none">
-          <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Volume di ricerca, CPC e concorrenza per quella keyword in ottica Google Ads. Non serve il dominio.</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Volume di ricerca, CPC e concorrenza per quella keyword in ottica Google Ads.</div>
           <div class="field-wrap">
+            <div class="field-label">Dominio del cliente <span style="font-weight:400;color:var(--text3)">(facoltativo — per evidenziarlo tra gli inserzionisti)</span></div>
+            <div class="url-row">
+              <div class="url-prefix">https://</div>
+              <input class="url-input" id="quick-ads-website" type="text" placeholder="www.nomesito.it" />
+            </div>
+          </div>
+          <div class="field-wrap" style="margin-top:12px">
             <div class="field-label">Keyword</div>
             <input class="url-input" id="quick-ads-kw" type="text" placeholder="es. commercialista milano" style="width:100%;border:1px solid var(--border);border-radius:9px;padding:10px 12px" onkeydown="if(event.key==='Enter')runQuick('ads')" />
           </div>
@@ -1579,7 +1586,7 @@ let trendCharts = [];
 window._trendChartInstances={};
 
 // Mod: versione app per indicatore deploy
-const APP_VERSION='v.15.7.10.51';
+const APP_VERSION='v.15.7.11.55';
 // Mod: refresh forzato ignorando cache (aggiunge timestamp all'URL)
 function hardRefresh(){
   const u=new URL(window.location.href);
@@ -2101,7 +2108,9 @@ window.addEventListener('load',()=>{
   const savedKey=localStorage.getItem('seo_agent_key');
   if(savedKey){const el=document.getElementById('agent-apikey');if(el){el.value=savedKey;document.getElementById('remember-key').checked=true;}}
   const savedName=localStorage.getItem('seo_agent_name');
-  if(savedName){const el=document.getElementById('agent-name');if(el)el.value=savedName;}
+  if(savedName){const an=document.getElementById('agent-name');if(an)an.value=savedName;const dn=document.getElementById('demo-name');if(dn)dn.value=savedName;}
+  const savedEmail=localStorage.getItem('seo_agent_email');
+  if(savedEmail){const ae=document.getElementById('agent-email');if(ae)ae.value=savedEmail;const de=document.getElementById('demo-email');if(de)de.value=savedEmail;}
   document.getElementById('agent-name').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('agent-apikey').focus()});
   document.getElementById('agent-pwd').addEventListener('keydown',e=>{if(e.key==='Enter')agentLogin()});
   document.getElementById('agent-apikey').addEventListener('keydown',e=>{if(e.key==='Enter')agentLogin()});
@@ -2116,9 +2125,14 @@ function showAgentLogin(){
   document.getElementById('agent-pwd').value='';
   document.getElementById('agent-apikey').value='';
   document.getElementById('demo-pwd').value='';
-  document.getElementById('demo-name').value='';
   document.getElementById('admin-pwd-inline').value='';
-  document.getElementById('agent-name').value='';
+  // Mod BQ: nome ed email restano precompilati con l'ultimo valore memorizzato (non li svuoto più).
+  const savedName=localStorage.getItem('seo_agent_name')||'';
+  const an=document.getElementById('agent-name'); if(an)an.value=savedName;
+  const dn=document.getElementById('demo-name'); if(dn)dn.value=savedName;
+  const savedEmail=localStorage.getItem('seo_agent_email')||'';
+  const ae=document.getElementById('agent-email'); if(ae)ae.value=savedEmail;
+  const de=document.getElementById('demo-email'); if(de)de.value=savedEmail;
   switchLoginTab('senior');
   showScreen('s-login');
   setTimeout(()=>document.getElementById('agent-name').focus(),100);
@@ -2158,6 +2172,7 @@ async function demoLogin(){
     const d=await r.json();
     if(d.error){err.textContent=d.error;err.style.display='block';document.getElementById('demo-pwd').value='';return;}
     if(demoName)localStorage.setItem('seo_agent_name',demoName);
+    if(email)localStorage.setItem('seo_agent_email',email);
     if(d.email)sessionStorage.setItem('seo_agent_email',d.email); else sessionStorage.removeItem('seo_agent_email');
     window._isDemo=true;sessionStorage.setItem('seo_is_demo','1');
     window._userProfile='expert';sessionStorage.setItem('seo_profile','expert');
@@ -2196,6 +2211,7 @@ async function agentLogin(){
     if(d.error){err.textContent=d.error;err.style.display='block';document.getElementById('agent-pwd').value='';return;}
     if(remember){localStorage.setItem('seo_agent_key',apiKey);}else{localStorage.removeItem('seo_agent_key');}
     localStorage.setItem('seo_agent_name',agentName);
+    if(email)localStorage.setItem('seo_agent_email',email);
     if(d.email)sessionStorage.setItem('seo_agent_email',d.email); else sessionStorage.removeItem('seo_agent_email');
     window._isDemo=false;sessionStorage.removeItem('seo_is_demo');
     window._userProfile=d.profile||profile;sessionStorage.setItem('seo_profile',window._userProfile);
@@ -4766,7 +4782,7 @@ function filterKwBySource(mode){
   document.querySelectorAll('#kw-list .sel-item').forEach(item=>{
     const src=item.getAttribute('data-src')||'stima';
     const show = (mode==='all') || (mode==='real'&&src==='real') || (mode==='stima'&&src==='stima');
-    item.style.display = show ? '' : 'none';
+    item.classList.toggle('kw-hidden', !show);
     if(show){ if(src==='real')visReal++; else visStima++; }
   });
   const counter=document.getElementById('kw-src-counter');
@@ -5024,13 +5040,14 @@ async function runQuick(mode){
     kw=(document.getElementById('quick-seo-kw')?.value||'').trim();
     if(!website){ box.innerHTML=_quickErr('Inserisci il dominio del cliente.'); return; }
   } else {
+    website=(document.getElementById('quick-ads-website')?.value||'').trim().replace(/^https?:\/\//,'');
     kw=(document.getElementById('quick-ads-kw')?.value||'').trim();
   }
   if(!kw){ box.innerHTML=_quickErr('Inserisci una keyword.'); return; }
   box.innerHTML='<div style="text-align:center;padding:24px;color:var(--text2)"><i class="ti ti-loader" style="font-size:22px;animation:spin 1s linear infinite"></i><div style="margin-top:8px;font-size:12.5px">Analisi in corso…</div></div>';
   try{
     if(mode==='ads'){
-      const r=await fetch('/api/quick-ads',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify({keywords:[kw],settore:'',city:''})});
+      const r=await fetch('/api/quick-ads',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify({keywords:[kw],settore:'',city:'',website})});
       const d=await r.json();
       box.innerHTML=d.error?_quickErr(d.error):_renderQuickAds(d);
     } else {
@@ -5042,6 +5059,52 @@ async function runQuick(mode){
 }
 function _quickErr(msg){
   return '<div style="text-align:center;padding:20px;border:0.5px solid var(--border);border-radius:10px"><div style="font-size:13.5px;font-weight:700;margin-bottom:6px">Analisi non riuscita</div><div style="font-size:12px;color:var(--text2)">'+(msg||'')+'</div></div>';
+}
+// Mod BR: mockup SERP con dati reali — evidenzia il cliente (o mostra la top 10 se fuori pagina).
+function buildSerpMockupHtml(p, clientLabel){
+  clientLabel = clientLabel || 'il tuo cliente';
+  const dom = it => it.domain||(it.link||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+  if(p.pos!=null && p.pos<=10 && Array.isArray(p.contextList) && p.contextList.length){
+    const rows = p.contextList.map(function(it){
+      const isClient = it.position===p.pos;
+      if(isClient){
+        return '<div style="margin:4px"><div style="display:flex;gap:10px;padding:10px 12px;align-items:flex-start;background:rgba(0,174,239,0.06);border:2px solid var(--io);border-radius:8px"><span style="font-size:13px;font-weight:700;color:var(--io);min-width:20px">'+it.position+'</span><div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:700;color:var(--io)">'+(it.title||dom(it))+'</span><span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--io);color:#fff">'+clientLabel+'</span></div><div style="font-size:11px;color:var(--io);margin-top:2px">'+dom(it)+'</div></div></div></div>';
+      }
+      return '<div style="display:flex;gap:10px;padding:9px 12px;border-top:0.5px solid var(--border);align-items:flex-start"><span style="font-size:12px;color:var(--text3);min-width:20px">'+it.position+'</span><div style="min-width:0"><div style="font-size:12.5px;color:var(--text)">'+(it.title||dom(it))+'</div><div style="font-size:11px;color:var(--text3)">'+dom(it)+'</div></div></div>';
+    }).join('');
+    return '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-top:8px">'+rows+'</div>';
+  }
+  if(Array.isArray(p.top10) && p.top10.length){
+    const banner = p.pos!=null
+      ? '<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;padding:10px 12px;border:2px solid var(--red);border-radius:8px;background:rgba(226,75,74,0.07)"><i class="ti ti-map-pin" style="font-size:16px;color:var(--red)"></i><span style="font-size:12px;color:var(--red)"><b>Il cliente è in '+p.pos+'ª posizione</b> — fuori dalla prima pagina. Ecco chi occupa oggi le prime 10.</span></div>'
+      : '<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;padding:10px 12px;border:2px solid var(--red);border-radius:8px;background:rgba(226,75,74,0.07)"><i class="ti ti-alert-triangle" style="font-size:16px;color:var(--red)"></i><span style="font-size:12px;color:var(--red)">Il cliente non è in prima pagina su questa keyword. Ecco chi occupa oggi le prime 10.</span></div>';
+    const grid = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+p.top10.map(function(it){
+      return '<div style="display:flex;gap:9px;padding:8px 10px;border:0.5px solid var(--border);border-radius:8px;align-items:flex-start"><span style="font-size:11px;color:var(--text3);min-width:15px">'+it.position+'</span><div style="min-width:0"><div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(it.title||dom(it))+'</div><div style="font-size:10.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+dom(it)+'</div></div></div>';
+    }).join('')+'</div>';
+    const statBox='<div style="margin-top:8px;padding:11px 13px;border:0.5px solid var(--red);border-radius:8px;background:rgba(226,75,74,0.07)"><div style="font-size:12.5px;font-weight:700;color:var(--red);margin-bottom:3px">Oltre il 90% dei clic resta sulla prima pagina di Google</div><div style="font-size:11.5px;color:var(--red)">In seconda pagina la visibilità del cliente crolla praticamente a zero: è lo spazio che un percorso SEO può fargli riconquistare.</div></div>';
+    return '<div style="margin-top:8px">'+banner+grid+statBox+'</div>';
+  }
+  return '';
+}
+// Mod BR: mockup annunci Ads reali — chi compra pubblicità oggi su questa keyword.
+function buildAdsMockupHtml(ads, clientInAds, clientLabel){
+  clientLabel = clientLabel || 'il tuo cliente';
+  if(!Array.isArray(ads) || !ads.length){
+    return '<div style="margin-top:10px;padding:11px 13px;border:0.5px solid var(--border);border-radius:8px;background:var(--bg2);font-size:11.5px;color:var(--text2)">Nessun annuncio a pagamento rilevato ora su questa keyword.</div>';
+  }
+  const rows = ads.map(function(a){
+    const dom=a.domain||(a.link||'').replace(/^https?:\/\//,'').replace(/\/$/,'');
+    const isClient = !!a.isClient;
+    return '<div style="display:flex;gap:10px;padding:10px 12px;border-top:0.5px solid var(--border);align-items:flex-start'+(isClient?';background:rgba(0,174,239,0.06)':'')+'">'+
+      '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--amber);color:#fff;margin-top:2px;white-space:nowrap">annuncio</span>'+
+      '<div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-size:12.5px;color:'+(isClient?'var(--io)':'var(--text)')+';font-weight:'+(isClient?'700':'400')+'">'+(a.title||dom)+'</span>'+(isClient?'<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--io);color:#fff">'+clientLabel+'</span>':'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text3)">'+dom+'</div></div></div>';
+  }).join('');
+  let html='<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-top:8px">'+rows+'</div>';
+  if(!clientInAds){
+    html+='<div style="margin-top:8px;padding:11px 13px;border:0.5px solid var(--red);border-radius:8px;background:rgba(226,75,74,0.07)"><div style="font-size:12.5px;font-weight:700;color:var(--red);margin-bottom:3px">Il cliente non è tra questi inserzionisti</div><div style="font-size:11.5px;color:var(--red)">I concorrenti stanno intercettando queste ricerche a pagamento: è traffico che il cliente sta lasciando a loro.</div></div>';
+  }
+  return html;
 }
 function _srcBadge(src){
   if(src==='reale') return '<span style="font-size:9px;font-weight:700;color:#1D9E75;background:rgba(29,158,117,0.12);padding:2px 7px;border-radius:7px">dato reale</span>';
@@ -5069,6 +5132,10 @@ function _renderQuickAds(d){
   h+='<div style="display:flex;justify-content:flex-end;margin-bottom:4px">'+_srcBadge(it.source)+'</div>';
   if(hasStima){ h+='<div style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:11px 13px;background:rgba(186,117,23,0.08);border-radius:9px"><i class="ti ti-info-circle" style="font-size:16px;color:#BA7517;flex-shrink:0;margin-top:1px"></i><span style="font-size:11.5px;color:var(--text2);line-height:1.5">Dato di <b>stima</b>: la keyword ha poche ricerche o il dato reale non è disponibile, quindi è una stima di mercato, non un valore misurato.</span></div>'; }
   if(hasNonDisp){ h+='<div style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:11px 13px;background:var(--bg2);border-radius:9px"><i class="ti ti-info-circle" style="font-size:16px;color:var(--text3);flex-shrink:0;margin-top:1px"></i><span style="font-size:11.5px;color:var(--text2);line-height:1.5"><b>Dato non disponibile</b>: i volumi di ricerca per questa keyword sono troppo bassi (o la fonte dati reale non copre questa zona/settore) per una rilevazione affidabile.</span></div>'; }
+  if(d.profile==='expert' && it.ads!==undefined){
+    h+='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-top:16px;margin-bottom:2px">Chi compra pubblicità ora su questa keyword</div>';
+    h+=buildAdsMockupHtml(it.ads, it.clientInAds);
+  }
   return h;
 }
 function _renderQuickSeo(d){
@@ -5095,6 +5162,11 @@ function _renderQuickSeo(d){
       '<div style="display:grid;grid-template-columns:2.2fr 1fr 1.2fr;gap:8px;padding:9px 13px;background:var(--bg2);font-size:10.5px;font-weight:700;color:var(--text2);text-transform:uppercase"><span>Keyword</span><span style="text-align:center">Posizione</span><span style="text-align:right">Fonte</span></div>'+
       pos.map(p=>'<div style="display:grid;grid-template-columns:2.2fr 1fr 1.2fr;gap:8px;padding:9px 13px;border-top:0.5px solid var(--border);font-size:12.5px;align-items:center"><span>'+(p.kw||'—')+'</span><span style="text-align:center;font-weight:600">'+(p.pos!=null?p.pos+'ª':'<span style="color:var(--text3);font-weight:400">oltre 100</span>')+'</span><span style="text-align:right">'+_srcBadge(p.source)+'</span></div>').join('')+
     '</div>';
+    if(isReal){
+      pos.forEach(p=>{
+        if(p.top10||p.contextList){ h+=buildSerpMockupHtml(p); }
+      });
+    }
   }
   if(!isReal){
     h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+
@@ -6171,6 +6243,20 @@ function renderEconomics(d){
 }
 
 // Mod 3: box SEO organica — posizione reale del sito nella SERP di Google (via Serper.dev)
+// Mod BR: mostra/nasconde il mockup SERP per una riga della tab SEO Organica.
+function toggleSerpMockupRow(idx){
+  const row=document.getElementById('serpmock-row-'+idx);
+  const btn=document.getElementById('serpmock-btn-'+idx);
+  if(!row)return;
+  const opening=row.style.display==='none';
+  row.style.display=opening?'table-row':'none';
+  if(btn)btn.innerHTML=opening?'<i class="ti ti-eye-off" style="font-size:10px;margin-right:2px"></i>Nascondi SERP':'<i class="ti ti-eye" style="font-size:10px;margin-right:2px"></i>Vedi SERP';
+  if(opening){
+    const body=document.getElementById('serpmock-body-'+idx);
+    const r=(window._organicSerpRows||[])[idx];
+    if(body&&r&&!body.dataset.built){ body.innerHTML=buildSerpMockupHtml({pos:r.position,top10:r.top10,contextList:r.contextList}); body.dataset.built='1'; }
+  }
+}
 function renderOrganicSerp(d){
   const cont=document.getElementById('organic-serp-content');
   if(!cont)return;
@@ -6184,6 +6270,7 @@ function renderOrganicSerp(d){
     return;
   }
   const rows=(serp.results||[]);
+  window._organicSerpRows=rows;
   if(!rows.length){
     cont.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--text2);font-size:12px">Nessuna keyword da analizzare.</div>';
     return;
@@ -6232,7 +6319,7 @@ function renderOrganicSerp(d){
         '<th style="width:13%;padding:9px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">Fonte</th>'+
         '<th style="width:21%;padding:9px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">URL posizionato</th>'+
       '</tr></thead><tbody>';
-  rows.forEach(function(r){
+  rows.forEach(function(r,idx){
     const p=r.position;
     const kd=kwData(r.kw);
     const posizionata=(p!=null&&p<=30);
@@ -6255,6 +6342,8 @@ function renderOrganicSerp(d){
     } else {
       urlCell='<span style="color:var(--red);font-size:10px;font-weight:600;line-height:1.35;white-space:normal;word-break:break-word;display:block">>100 - visibilità assente</span>';
     }
+    const hasMockup=!!(r.top10||r.contextList);
+    if(hasMockup){ urlCell+='<button onclick="toggleSerpMockupRow('+idx+')" id="serpmock-btn-'+idx+'" style="margin-top:4px;font-size:9.5px;padding:2px 8px;border-radius:10px;border:0.5px solid var(--border);background:var(--bg2);color:var(--io);cursor:pointer"><i class="ti ti-eye" style="font-size:10px;margin-right:2px"></i>Vedi SERP</button>'; }
     html+='<tr style="border-top:0.5px solid var(--border)'+(isNP?';background:rgba(226,75,74,0.04)':'')+'">'+
       '<td title="'+(r.kw||'').replace(/"/g,'&quot;')+'" style="padding:9px 10px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;line-height:1.3;cursor:default'+(isNP?';color:var(--red)':'')+'">'+r.kw+'</td>'+
       '<td style="padding:9px 4px;text-align:center">'+badge+'</td>'+
@@ -6263,6 +6352,7 @@ function renderOrganicSerp(d){
       '<td style="padding:9px 6px;text-align:center;white-space:nowrap">'+srcTag(kd.dataSource)+'</td>'+
       '<td style="padding:9px 10px">'+urlCell+'</td>'+
     '</tr>';
+    if(hasMockup){ html+='<tr id="serpmock-row-'+idx+'" style="display:none"><td colspan="6" style="padding:0 10px 12px;background:var(--bg2)"><div id="serpmock-body-'+idx+'"></div></td></tr>'; }
   });
   html+='</tbody></table></div>'+
     '<div style="font-size:10px;color:var(--text3);line-height:1.55;margin-top:10px"><b>Come leggerlo:</b> <span style="color:var(--green);font-weight:700">verde</span> = top 3, <span style="color:var(--io);font-weight:700">azzurro</span> = prima pagina (4-10), <span style="color:var(--amber);font-weight:700">arancione</span> = seconda pagina (11-20). Le righe in <span style="color:var(--red);font-weight:700">rosso</span> sono <b>fuori visibilità</b>: oltre la 30ª posizione viene mostrata la posizione reale rilevata (es. "pos. 68"), mentre "oltre 100" indica che il sito non compare nelle prime 100 posizioni. Per queste keyword il traffico organico è praticamente nullo.</div>'+
