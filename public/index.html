@@ -743,7 +743,7 @@ body.profile-admin #admin-toggle-btn{display:none !important}
     </div>
     <!-- TESTO CENTRATO -->
     <div class="topbar-center">
-      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.15.7.10.06</span></div>
+      <div class="topbar-logo-text">Digital Analyzer-Pro <span id="app-version-lbl" style="font-size:10px;font-weight:500;color:var(--text3);margin-left:6px;letter-spacing:0">v.15.7.10.51</span></div>
       <div class="topbar-sub">Tool di analisi digitale per PMI · © 2026</div>
     </div>
     <div class="topbar-right">
@@ -1579,7 +1579,7 @@ let trendCharts = [];
 window._trendChartInstances={};
 
 // Mod: versione app per indicatore deploy
-const APP_VERSION='v.15.7.10.06';
+const APP_VERSION='v.15.7.10.51';
 // Mod: refresh forzato ignorando cache (aggiunge timestamp all'URL)
 function hardRefresh(){
   const u=new URL(window.location.href);
@@ -5077,11 +5077,18 @@ function _renderQuickSeo(d){
   let h='<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><i class="ti ti-chart-arcs" style="font-size:20px;color:var(--io)"></i><span style="font-size:17px;font-weight:700">'+(d.profile==='expert'?'Analisi SEO — dati reali':'Stima SEO')+'</span></div>';
   h+='<div style="font-size:12px;color:var(--text2);margin-bottom:16px">Stato SEO del sito: posizione sulle ricerche, qualità SEO e traffico organico.</div>';
   if(d.realDataNote){ h+='<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;padding:11px 13px;background:var(--bg2);border-radius:9px"><i class="ti ti-info-circle" style="font-size:16px;color:var(--text3);flex-shrink:0;margin-top:1px"></i><span style="font-size:11.5px;color:var(--text2);line-height:1.5">'+d.realDataNote+'</span></div>'; }
-  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">'+
-    '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Punteggio SEO sito</div><div style="font-size:22px;font-weight:700">'+(d.seoScore!=null?d.seoScore:'—')+'<span style="font-size:12px;color:var(--text3)">/100</span></div></div>'+
-    '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Traffico organico/mese</div><div style="font-size:22px;font-weight:700">~'+(d.trafficoOrganico!=null?Number(d.trafficoOrganico).toLocaleString('it-IT'):'—')+'</div></div>'+
-    '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Keyword in top 10</div><div style="font-size:22px;font-weight:700">'+topN+'<span style="font-size:12px;color:var(--text3)">/'+pos.length+'</span></div></div>'+
-  '</div>';
+  const isReal=d.profile==='expert';
+  if(isReal){
+    h+='<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px;max-width:220px">'+
+      '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Keyword in top 10</div><div style="font-size:22px;font-weight:700">'+topN+'<span style="font-size:12px;color:var(--text3)">/'+pos.length+'</span></div></div>'+
+    '</div>';
+  } else {
+    h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">'+
+      '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Punteggio SEO sito</div><div style="font-size:22px;font-weight:700">'+(d.seoScore!=null?d.seoScore:'—')+'<span style="font-size:12px;color:var(--text3)">/100</span></div></div>'+
+      '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Traffico organico/mese</div><div style="font-size:22px;font-weight:700">~'+(d.trafficoOrganico!=null?Number(d.trafficoOrganico).toLocaleString('it-IT'):'—')+'</div></div>'+
+      '<div style="background:var(--bg2);border-radius:10px;padding:12px"><div style="font-size:11px;color:var(--text2)">Keyword in top 10</div><div style="font-size:22px;font-weight:700">'+topN+'<span style="font-size:12px;color:var(--text3)">/'+pos.length+'</span></div></div>'+
+    '</div>';
+  }
   if(pos.length){
     h+='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">Posizione organica sulle keyword</div>'+
     '<div style="border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px">'+
@@ -5089,11 +5096,13 @@ function _renderQuickSeo(d){
       pos.map(p=>'<div style="display:grid;grid-template-columns:2.2fr 1fr 1.2fr;gap:8px;padding:9px 13px;border-top:0.5px solid var(--border);font-size:12.5px;align-items:center"><span>'+(p.kw||'—')+'</span><span style="text-align:center;font-weight:600">'+(p.pos!=null?p.pos+'ª':'<span style="color:var(--text3);font-weight:400">oltre 100</span>')+'</span><span style="text-align:right">'+_srcBadge(p.source)+'</span></div>').join('')+
     '</div>';
   }
-  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+
-    '<div style="border:0.5px solid var(--border);border-radius:9px;padding:11px"><div style="font-size:11px;color:var(--text2)">On-page</div><div style="font-size:17px;font-weight:700">'+(d.onpage!=null?d.onpage:'—')+'</div></div>'+
-    '<div style="border:0.5px solid var(--border);border-radius:9px;padding:11px"><div style="font-size:11px;color:var(--text2)">Tecnico</div><div style="font-size:17px;font-weight:700">'+(d.tecnico!=null?d.tecnico:'—')+'</div></div>'+
-    '<div style="border:0.5px solid var(--border);border-radius:9px;padding:11px"><div style="font-size:11px;color:var(--text2)">Autorità</div><div style="font-size:17px;font-weight:700">'+(d.autorita!=null?d.autorita:'—')+'</div></div>'+
-  '</div>';
+  if(!isReal){
+    h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+
+      '<div style="border:0.5px solid var(--border);border-radius:9px;padding:11px"><div style="font-size:11px;color:var(--text2)">On-page</div><div style="font-size:17px;font-weight:700">'+(d.onpage!=null?d.onpage:'—')+'</div></div>'+
+      '<div style="border:0.5px solid var(--border);border-radius:9px;padding:11px"><div style="font-size:11px;color:var(--text2)">Tecnico</div><div style="font-size:17px;font-weight:700">'+(d.tecnico!=null?d.tecnico:'—')+'</div></div>'+
+      '<div style="border:0.5px solid var(--border);border-radius:9px;padding:11px"><div style="font-size:11px;color:var(--text2)">Autorità</div><div style="font-size:17px;font-weight:700">'+(d.autorita!=null?d.autorita:'—')+'</div></div>'+
+    '</div>';
+  }
   return h;
 }
 
