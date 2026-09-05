@@ -1116,33 +1116,33 @@ body.profile-admin #admin-toggle-btn{display:none !important}
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="error-msg" id="error-msg"></div>
-    <div class="loading" id="loading">
-      <div style="width:100%;max-width:640px;text-align:center;padding:2rem 1rem">
-        <!-- Progress bar -->
-        <div style="width:100%;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:20px">
-          <div id="loading-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--io),#8CC63F);border-radius:3px;transition:width 0.8s ease"></div>
-        </div>
-        <!-- Messaggio -->
-        <div id="loading-msg" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Analizzando il sito web...</div>
-        <!-- Timer -->
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:22px">
-          <div style="display:flex;gap:4px">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      <div class="error-msg" id="error-msg"></div>
+      <div class="loading" id="loading">
+        <div style="width:100%;max-width:640px;text-align:center;padding:2rem 1rem">
+          <!-- Progress bar -->
+          <div style="width:100%;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:20px">
+            <div id="loading-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--io),#8CC63F);border-radius:3px;transition:width 0.8s ease"></div>
           </div>
-          <span id="loading-timer" style="font-size:12px;color:var(--text3)">generazione in corso…</span>
+          <!-- Messaggio -->
+          <div id="loading-msg" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Analizzando il sito web...</div>
+          <!-- Timer -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:22px">
+            <div style="display:flex;gap:4px">
+              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+            <span id="loading-timer" style="font-size:12px;color:var(--text3)">generazione in corso…</span>
+          </div>
+          <!-- Lo sapevi che... (curiosità durante l'attesa) -->
+          <div id="loading-tip" style="margin-top:6px;background:linear-gradient(135deg,rgba(0,174,239,0.08),rgba(140,198,63,0.06));border:1px solid rgba(0,174,239,0.22);border-radius:var(--rl);padding:28px 32px;text-align:left;transition:opacity .35s ease,background .8s ease;box-shadow:0 4px 18px rgba(0,174,239,0.10)">
+            <div style="display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:var(--io);text-transform:uppercase;letter-spacing:.09em;margin-bottom:13px"><i class="ti ti-bulb" style="font-size:20px"></i><span>Lo sapevi che…</span></div>
+            <div id="loading-tip-text" style="font-size:18px;color:var(--text);line-height:1.65;font-weight:500"></div>
+          </div>
+          <!-- Mod 4: pulsante interrompi -->
+          <button id="loading-cancel-btn" onclick="cancelLoading()" style="margin-top:20px;font-size:12px;padding:8px 18px;border-radius:20px;border:0.5px solid var(--red);background:transparent;color:var(--red-text);cursor:pointer;transition:all .15s">
+            <i class="ti ti-x" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Interrompi e torna al form
+          </button>
         </div>
-        <!-- Lo sapevi che... (curiosità durante l'attesa) -->
-        <div id="loading-tip" style="margin-top:6px;background:linear-gradient(135deg,rgba(0,174,239,0.08),rgba(140,198,63,0.06));border:1px solid rgba(0,174,239,0.22);border-radius:var(--rl);padding:28px 32px;text-align:left;transition:opacity .35s ease,background .8s ease;box-shadow:0 4px 18px rgba(0,174,239,0.10)">
-          <div style="display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:var(--io);text-transform:uppercase;letter-spacing:.09em;margin-bottom:13px"><i class="ti ti-bulb" style="font-size:20px"></i><span>Lo sapevi che…</span></div>
-          <div id="loading-tip-text" style="font-size:18px;color:var(--text);line-height:1.65;font-weight:500"></div>
-        </div>
-        <!-- Mod 4: pulsante interrompi -->
-        <button id="loading-cancel-btn" onclick="cancelLoading()" style="margin-top:20px;font-size:12px;padding:8px 18px;border-radius:20px;border:0.5px solid var(--red);background:transparent;color:var(--red-text);cursor:pointer;transition:all .15s">
-          <i class="ti ti-x" style="font-size:13px;vertical-align:-2px;margin-right:4px"></i>Interrompi
-        </button>
       </div>
     </div>
 
@@ -1607,7 +1607,7 @@ let trendCharts = [];
 window._trendChartInstances={};
 
 // Mod: versione app per indicatore deploy
-const APP_VERSION='v.16.7.12.01';
+const APP_VERSION='v.16.7.11.25';
 // Mod: refresh forzato ignorando cache (aggiunge timestamp all'URL)
 function hardRefresh(){
   const u=new URL(window.location.href);
@@ -1617,15 +1617,14 @@ function hardRefresh(){
 // Mod 4: controller per interrompere le richieste in corso
 window._activeAbortController=null;
 function cancelLoading(){
-  if(!confirm('Vuoi davvero interrompere?\n\nResterai qui con tutti i dati ancora compilati.'))return;
+  if(!confirm('Vuoi davvero interrompere?\n\nTornerai al form con tutti i dati ancora compilati.'))return;
   // Annulla la richiesta fetch in corso
   if(window._activeAbortController){console.log('[DIAG] cancelLoading → abort() chiamato da utente');try{window._activeAbortController.abort();}catch(e){}}
   // Nascondi loading, ferma i tip
   const ld=document.getElementById('loading');if(ld)ld.style.display='none';
   if(typeof stopLoadingTips==='function')stopLoadingTips();
-  // Riabilita i pulsanti d'avvio di entrambi i flussi (suggerimenti + analisi)
+  // Riabilita il pulsante suggerimenti
   const bs=document.getElementById('btn-suggest');if(bs)bs.disabled=false;
-  const ba=document.getElementById('btn-analyze');if(ba)ba.disabled=false;
   // I dati nel form restano intatti: non tocco nessun campo
 }
 
@@ -5197,19 +5196,16 @@ function _renderQuickSeo(d){
 }
 
 // ── MOD BH: pannello "cosa analizzare" prima della generazione ──
-// #137: di default TUTTE attive tranne CWV (la più lenta) — prima erano tutte spente e il primo
-// click su "Genera il report" senza aver toccato nulla non faceva letteralmente niente (solo un alert),
-// dando l'impressione che il report "non si generasse mai".
 const REPORT_SECTIONS=[
-  {k:'seo',      lbl:'Keywords',         icon:'ti-search',         sec:8,  on:true},
-  {k:'competitor',lbl:'Score & Comps',   icon:'ti-users-group',    sec:14, on:true},
-  {k:'social',   lbl:'Social Presence',  icon:'ti-brand-facebook', sec:18, on:true},
-  {k:'gbp',      lbl:'Google Business Profile', icon:'ti-map-pin',  sec:8,  on:true},
-  {k:'ai',       lbl:'AI Presence',      icon:'ti-robot',          sec:12, on:true},
+  {k:'seo',      lbl:'Keywords',         icon:'ti-search',         sec:8,  on:false},
+  {k:'competitor',lbl:'Score & Comps',   icon:'ti-users-group',    sec:14, on:false},
+  {k:'social',   lbl:'Social Presence',  icon:'ti-brand-facebook', sec:18, on:false},
+  {k:'gbp',      lbl:'Google Business Profile', icon:'ti-map-pin',  sec:8,  on:false},
+  {k:'ai',       lbl:'AI Presence',      icon:'ti-robot',          sec:12, on:false},
   {k:'cwv',      lbl:'Core Web Vitals',  icon:'ti-gauge',          sec:18, on:false},
-  {k:'trends',   lbl:'Google Trends',    icon:'ti-chart-line',     sec:12, on:true},
-  {k:'ads',      lbl:'Google Ads',       icon:'ti-ad',             sec:10, on:true},
-  {k:'a11y',     lbl:'Accessibilità',    icon:'ti-accessible',     sec:8,  on:true}
+  {k:'trends',   lbl:'Google Trends',    icon:'ti-chart-line',     sec:12, on:false},
+  {k:'ads',      lbl:'Google Ads',       icon:'ti-ad',             sec:10, on:false},
+  {k:'a11y',     lbl:'Accessibilità',    icon:'ti-accessible',     sec:8,  on:false}
 ];
 function _sectionsState(){
   if(!window._reportSections){ window._reportSections={}; REPORT_SECTIONS.forEach(s=>window._reportSections[s.k]=s.on); }
@@ -5269,12 +5265,8 @@ function _toggleAllSections(){
 }
 function _startReportFromPanel(){
   const st=_sectionsState();
-  let anyOn=REPORT_SECTIONS.some(s=>st[s.k]);
-  if(!anyOn){
-    // #137: mai più bloccare in silenzio con un alert — se nessuna sezione è attiva le accendo tutte
-    // e procedo comunque, così il pulsante funziona sempre al primo click.
-    REPORT_SECTIONS.forEach(s=>{ st[s.k]=true; });
-  }
+  const anyOn=REPORT_SECTIONS.some(s=>st[s.k]);
+  if(!anyOn){ alert('Attiva almeno una sezione per generare il report.'); return; }
   const ov=document.getElementById('sections-panel-ov'); if(ov)ov.remove();
   window._activeSections=Object.assign({},st);
   runAnalysis();
@@ -5366,9 +5358,11 @@ async function runAnalysis(_mode){
     : document.getElementById('f-settore-input').value.trim();
   const provinciaLabel=document.getElementById('f-prov-input').value.trim();
   const comune=document.getElementById('f-comune').value.trim();
+  document.getElementById('step-select').style.display='none';
+  document.getElementById('step-form').style.display='block';
+  document.querySelector('.card-form').style.display='none';
   document.getElementById('results').style.display='none';document.getElementById('error-msg').style.display='none';
-  document.getElementById('loading').style.display='flex';
-  const _btnAnalyze=document.getElementById('btn-analyze'); if(_btnAnalyze)_btnAnalyze.disabled=true;
+  document.getElementById('loading').style.display='flex';document.getElementById('btn-suggest').disabled=true;
   // Mod 1: scrolla al box "Lo sapevi che..." per far leggere le curiosità durante l'attesa
   setTimeout(()=>{const tip=document.getElementById('loading-tip');if(tip)tip.scrollIntoView({behavior:'smooth',block:'center'});},80);
   trendCharts.forEach(c=>c.destroy());trendCharts=[];
@@ -5382,23 +5376,61 @@ async function runAnalysis(_mode){
   const anTimerH=startSmartTimer(anEst,'analyze');
   try{
     window._activeAbortController=new AbortController();
-    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},
+    // #ASYNC: avvio l'analisi in background (risposta immediata con un jobId), poi interrogo
+    // periodicamente lo stato invece di aspettare un'unica richiesta HTTP lunga (causa nota di
+    // ERR_CONNECTION_CLOSED su Render quando la generazione superava i 2 minuti — vedi #128/#129/#135).
+    const startR=await fetch('/api/analyze-start',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},
       body:JSON.stringify({company:suggestData?.company||domain,website,city:comune||provinciaLabel,comune,provincia:provinciaLabel,settore:settoreLabel,bizType,rilevanza,visibilita,selectedKeywords:selectedKws,selectedCompetitors:selectedComps,companyInfo:suggestData,apiMode:(window._isDemo||sessionStorage.getItem('seo_is_demo')==='1')?window._apiMode:null,activeSections:window._activeSections||null}),signal:window._activeAbortController.signal});
-    const data=await r.json();
-    console.log('[DIAG] /api/analyze RISPOSTA — status:'+r.status+' hasError:'+(!!(data&&data.error))+' @'+new Date().toLocaleTimeString());
-    clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';
-    { const _b=document.getElementById('btn-analyze'); if(_b)_b.disabled=false; }
+    const startData=await startR.json();
+    console.log('[DIAG] /api/analyze-start RISPOSTA — status:'+startR.status+' hasError:'+(!!(startData&&startData.error))+' @'+new Date().toLocaleTimeString());
+    if(startR.status===401){clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;window._analysisRunning=false;console.log('[DIAG] EXIT: 401 logout');doLogout();return;}
+    if(startData.error){
+      clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;
+      window._analysisRunning=false;
+      console.log('[DIAG] EXIT: analyze-start error → torno a selezione. Errore: '+startData.error);
+      document.querySelector('.card-form').style.display='block';
+      document.getElementById('error-msg').textContent='Errore: '+startData.error;document.getElementById('error-msg').style.display='block';document.getElementById('step-select').style.display='block';document.getElementById('step-form').style.display='none';
+      return;
+    }
+    const jobId=startData.jobId;
+    // Polling: ogni richiesta dura pochi millisecondi, quindi non può mai andare in timeout come
+    // la vecchia richiesta unica. MAX_WAIT_MS è solo un margine di sicurezza (analisi normale: 1-3 min).
+    const POLL_MS=3000, MAX_WAIT_MS=8*60*1000;
+    const startedAt=Date.now();
+    let data=null;
+    while(true){
+      if(window._activeAbortController.signal.aborted){ const ab=new Error('aborted'); ab.name='AbortError'; throw ab; }
+      if(Date.now()-startedAt>MAX_WAIT_MS){ data={error:'Generazione troppo lunga: riprova tra qualche secondo (le tue keyword restano selezionate).'}; break; }
+      await new Promise(res=>setTimeout(res,POLL_MS));
+      let job, jrStatus;
+      try{
+        const jr=await fetch('/api/analyze-status/'+jobId,{headers:{'x-session-token':getToken()},signal:window._activeAbortController.signal});
+        jrStatus=jr.status;
+        job=await jr.json();
+      }catch(pe){
+        if(pe.name==='AbortError') throw pe;
+        console.log('[DIAG] polling: blip di rete, riprovo — '+(pe.message||''));
+        continue; // un singolo giro di polling fallito non deve far perdere il job già in corso
+      }
+      if(jrStatus===401){clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;window._analysisRunning=false;console.log('[DIAG] EXIT: 401 logout (polling)');doLogout();return;}
+      if(jrStatus===404){ data={error:(job&&job.error)||'Job non trovato o scaduto. Riprova.'}; break; }
+      if(job && job.status==='done'){ data=job.data; break; }
+      if(job && job.status==='error'){ data={error:job.error}; break; }
+      // status 'pending' → continuo il polling
+    }
+    console.log('[DIAG] analisi COMPLETATA (polling) — hasError:'+(!!(data&&data.error))+' @'+new Date().toLocaleTimeString());
+    clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;
     window._analysisRunning=false; // lock liberato
-    if(r.status===401){console.log('[DIAG] EXIT: 401 logout');doLogout();return;}
-    // Mod AS: se la generazione è scaduta (504), NIENTE retry automatico — mostro subito "Riprova" con kw intatte.
-    if(r.status===504 || (data&&data.error&&/troppo lunga/i.test(data.error))){
-      console.log('[DIAG] EXIT: 504/troppo-lunga → retry UI');
-      _analysisRetryUI(data&&data.error?data.error:'Generazione troppo lunga.');
+    // Mod AS: se la generazione è scaduta, NIENTE retry automatico — mostro subito "Riprova" con kw intatte.
+    if(data&&data.error&&/troppo lunga/i.test(data.error)){
+      console.log('[DIAG] EXIT: troppo-lunga → retry UI');
+      _analysisRetryUI(data.error);
       return;
     }
     if(data.error){
-      console.log('[DIAG] EXIT: data.error → resto sulla selezione. Errore: '+data.error);
-      document.getElementById('error-msg').textContent='Errore: '+data.error;document.getElementById('error-msg').style.display='block';return;}
+      console.log('[DIAG] EXIT: data.error → torno a selezione. Errore: '+data.error);
+      document.querySelector('.card-form').style.display='block';
+      document.getElementById('error-msg').textContent='Errore: '+data.error;document.getElementById('error-msg').style.display='block';document.getElementById('step-select').style.display='block';document.getElementById('step-form').style.display='none';return;}
     currentData=data; window._readonlyReport=false; if(window._activeSections)data._sections=Object.assign({},window._activeSections); try{data.overallScore=computeOverallScore(data);recalibraCompetitor(data);}catch(_){}
     try{
       const _meta={company:suggestData?.company||domain,website,settore:settoreLabel,city:comune||provinciaLabel,selectedKeywords:selectedKws};
@@ -5408,11 +5440,11 @@ async function runAnalysis(_mode){
     window.scrollTo({top:0,behavior:'instant'});
   }catch(e){
     console.log('[DIAG] CATCH — name:'+e.name+' msg:'+(e.message||'')+' @'+new Date().toLocaleTimeString());
-    clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';
-    { const _b=document.getElementById('btn-analyze'); if(_b)_b.disabled=false; }
+    clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;
     window._analysisRunning=false; // lock liberato
     if(e.name==='AbortError'){
-      console.log('[DIAG] EXIT: AbortError → nessuna azione, resto sulla selezione (fetch abortita dall\'utente)');
+      console.log('[DIAG] EXIT: AbortError → torno a selezione SENZA messaggio (qualcuno ha abortito la fetch)');
+      document.getElementById('step-select').style.display='block';document.getElementById('step-form').style.display='none';
       return;
     }
     // Mod AS: errore di rete/connessione caduta — NIENTE retry automatico, mostro "Riprova" con kw intatte.
@@ -5423,7 +5455,8 @@ async function runAnalysis(_mode){
 // Mod AQ: mostra lo step selezione con le keyword INTATTE e un pulsante per riprovare, senza far ricominciare.
 function _analysisRetryUI(msg){
   document.getElementById('loading').style.display='none';
-  { const _b=document.getElementById('btn-analyze'); if(_b)_b.disabled=false; }
+  document.getElementById('step-form').style.display='none';
+  document.getElementById('step-select').style.display='block';
   const err=document.getElementById('error-msg');
   if(err){
     err.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span>⚠️ '+msg+' Le tue keyword e competitor sono ancora selezionati.</span>'+
