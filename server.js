@@ -1264,12 +1264,22 @@ async function buildOrganicSerp(selectedKeywords, website, geo) {
 }
 
 // STEP 2: analisi completa
-app.post('/api/analyze', async (req, res) => {
-  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
+// #ASYNC: errore "controllato" con status HTTP associato, usato da runFullAnalysis()
+// per segnalare fallimenti attesi (auth, validazione, timeout AI, JSON non valido) sia
+// alla vecchia rotta sincrona /api/analyze sia al nuovo flusso a job /api/analyze-start.
+class AnalysisError extends Error {
+  constructor(statusCode, message) { super(message); this.statusCode = statusCode; }
+}
+
+// #ASYNC: tutta la logica di generazione del report, estratta da /api/analyze così da poter
+// essere eseguita sia in modo sincrono (rotta storica) sia in background (job asincrono).
+// Non usa mai `res` — solleva AnalysisError per gli errori attesi, altri errori si propagano.
+async function runFullAnalysis(req) {
+  if (!isAuthenticated(req)) throw new AnalysisError(401, 'Non autenticato');
   const { company, website, city, comune, provincia, settore, bizType, rilevanza, visibilita, selectedKeywords, selectedCompetitors, companyInfo, apiMode } = req.body;
-  if (!company) return res.status(400).json({ error: 'company mancante' });
+  if (!company) throw new AnalysisError(400, 'company mancante');
   const usedKey2 = getApiKey(req);
-  if (!usedKey2) return res.status(500).json({ error: 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.' });
+  if (!usedKey2) throw new AnalysisError(500, 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.');
 
   const kwList = selectedKeywords.map(k => `"${k.kw}" (vol ~${k.volume}/mese, CPC EUR${k.cpc}, comp: ${k.competition}, intento: ${k.intent})`).join('; ');
   const compList = selectedCompetitors.map(c => `${c.name} (${c.domain})`).join(', ');
@@ -1457,7 +1467,7 @@ Rispondi SOLO con JSON valido (nessun testo, nessun markdown):
 Analizza ESATTAMENTE keyword e competitor forniti. 6 quick wins, 5 raccomandazioni. Dati realistici. Per "googleAds": considera SOLO le keyword con aiRank "scarso" o "discreto" (le keyword non presidiate organicamente). Per ognuna di queste calcola clic = volume*0.04 (CTR Ads stimato 4%), costo = clic*cpc. La sezione keywordBreakdown deve contenere ESCLUSIVAMENTE queste keyword non presidiate, non tutte. Stima seoInvestmentRange realistica per il settore/zona dell'azienda. commercialMessage deve essere persuasivo da agente commerciale, max 3 righe.
 QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono essere SPECIFICI e DIVERSI tra i vari competitor — niente frasi ripetute o intercambiabili. Evita formule generiche ("buona presenza", "sito da migliorare"); cita l'aspetto concreto (es. "molte recensioni Google locali", "nessun blog ne contenuti aggiornati"). quickWins e recommendations non devono ripetere lo stesso concetto: ogni voce affronta un aspetto distinto.`;
 
-  try {
+  {
     // Mod AQ (rev12): timeout esplicito sulla chiamata AI (115s) per evitare connessioni "appese".
     const aiCtrl = new AbortController();
     const aiTo = setTimeout(() => aiCtrl.abort(), 170000);
@@ -1471,12 +1481,12 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
       });
     } catch (fe) {
       clearTimeout(aiTo);
-      if (fe.name === 'AbortError') return res.status(504).json({ error: 'Generazione troppo lunga: riprova tra qualche secondo (le tue keyword restano selezionate).' });
+      if (fe.name === 'AbortError') throw new AnalysisError(504, 'Generazione troppo lunga: riprova tra qualche secondo (le tue keyword restano selezionate).');
       throw fe;
     }
     clearTimeout(aiTo);
     const data = await response.json();
-    if (data.error) return res.status(500).json({ error: traduciErroreAnthropic(data.error) });
+    if (data.error) throw new AnalysisError(500, traduciErroreAnthropic(data.error));
     let raw = data.content.map(i => i.text || '').join('').replace(/```json|```/g, '').trim();
     if (!raw.endsWith('}')) {
       const lb = raw.lastIndexOf('}');
@@ -1506,7 +1516,7 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
         for (let i = 0; i < og; i++) r2 += '}';
         parsed = JSON.parse(r2);
       } catch (e2) {
-        return res.status(500).json({ error: traduciErroreAnthropic(e1) });
+        throw new AnalysisError(500, traduciErroreAnthropic(e1));
       }
     }
     // MOD #122: rete di sicurezza anti-bias competitor. Se il cliente risulta SEMPRE ultimo,
@@ -1664,10 +1674,59 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
     // Mod AB.1 (rev11): il salvataggio del report avviene ORA dal front-end (rotta /api/report/save) DOPO
     // il ricalcolo dello score reale, così lo storico admin mostra il punteggio corretto (non quello grezzo AI)
     // e contiene il report completo. Qui non salvo più (evita doppio salvataggio con score sbagliato).
+    return parsed;
+  }
+}
+
+// Rotta storica: comportamento invariato per chi la chiama ancora così (sincrona, un'unica risposta lunga).
+app.post('/api/analyze', async (req, res) => {
+  try {
+    const parsed = await runFullAnalysis(req);
     res.json(parsed);
   } catch (err) {
+    if (err instanceof AnalysisError) return res.status(err.statusCode).json({ error: err.message });
     res.status(500).json({ error: traduciErroreAnthropic(err) });
   }
+});
+
+// #ASYNC: job store in memoria. Ogni job: { status: 'pending'|'done'|'error', data?, error?, createdAt }.
+// Pulizia periodica dei job vecchi per non accumulare memoria (un job resta al massimo 30 minuti).
+const analysisJobs = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, job] of analysisJobs) {
+    if (now - job.createdAt > 30 * 60 * 1000) analysisJobs.delete(id);
+  }
+}, 5 * 60 * 1000);
+
+// #ASYNC: avvia l'analisi in background e risponde SUBITO con un jobId, invece di far aspettare
+// al client un'unica richiesta HTTP lunga (che su Render può cadere per timeout di piattaforma
+// indipendentemente da keepAliveTimeout/headersTimeout impostati sotto — vedi #128/#129/#135).
+app.post('/api/analyze-start', (req, res) => {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
+  if (!req.body || !req.body.company) return res.status(400).json({ error: 'company mancante' });
+  if (!getApiKey(req)) return res.status(500).json({ error: 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.' });
+
+  const jobId = crypto.randomBytes(16).toString('hex');
+  analysisJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+  res.json({ jobId });
+
+  // Fire-and-forget: il client farà polling su /api/analyze-status/:jobId.
+  runFullAnalysis(req)
+    .then(parsed => { analysisJobs.set(jobId, { status: 'done', data: parsed, createdAt: Date.now() }); })
+    .catch(err => {
+      const msg = (err instanceof AnalysisError) ? err.message : traduciErroreAnthropic(err);
+      console.error('[ASYNC-ANALYZE] job ' + jobId + ' fallito:', msg);
+      analysisJobs.set(jobId, { status: 'error', error: msg, createdAt: Date.now() });
+    });
+});
+
+// #ASYNC: il client chiama questa rotta ogni pochi secondi finché status non è 'done' o 'error'.
+app.get('/api/analyze-status/:jobId', (req, res) => {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
+  const job = analysisJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job non trovato o scaduto (max 30 min). Rilancia l\'analisi.' });
+  res.json(job);
 });
 
 // Mod H+I (rev10): analisi scheda GBP aggiuntiva — URL obbligatorio, nome/città facoltativi.
