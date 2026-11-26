@@ -48,6 +48,15 @@ async function initDB() {
         created_at BIGINT NOT NULL
       )
     `);
+    // Piano Free: conteggio report mensili per utente (email). Chiave = email minuscola, mese = 'AAAA-MM'.
+    await dbClient.query(`
+      CREATE TABLE IF NOT EXISTS free_usage (
+        user_key TEXT NOT NULL,
+        month TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_key, month)
+      )
+    `);
     console.log('✅ Database connesso e pronto.');
     flushLoginQueue();
   } catch (e) { console.error('❌ Errore DB:', e.message); dbClient = null; }
@@ -57,7 +66,7 @@ async function initDB() {
 // NON si perdono: vengono accodati e scritti appena il DB è pronto (flushLoginQueue).
 const _loginQueue = [];
 async function logAgentLogin(agentName, loginType) {
-  const name = agentName || 'Agente';
+  const name = agentName || 'Utente';
   const type = loginType || 'agente';
   if (!dbClient) {
     _loginQueue.push({ name, type, ts: new Date() });
@@ -92,7 +101,7 @@ async function logReport(session, body, score, fullReport) {
     try { rjson = fullReport ? JSON.stringify(fullReport) : null; } catch(_) { rjson = null; }
     await dbClient.query(
       'INSERT INTO reports (agent_name, agent_key_hint, company, website, industry, location, overall_score, keywords_count, report_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-      [session.agentName||'Agente', hint, body.company||'', body.website||'', body.settore||'', body.city||'', score||0, (body.selectedKeywords||[]).length, rjson]
+      [session.agentName||'Utente', hint, body.company||'', body.website||'', body.settore||'', body.city||'', score||0, (body.selectedKeywords||[]).length, rjson]
     );
   } catch(e) { console.error('Errore log report:', e.message); }
 }
@@ -108,13 +117,13 @@ function getApiKey(req) {
   return ANTHROPIC_API_KEY; // fallback per admin o chiamate senza chiave agente
 }
 
-// Traduce gli errori Anthropic in messaggi comprensibili per l'agente
+// Traduce gli errori Anthropic in messaggi comprensibili per l'utente
 function traduciErroreAnthropic(err) {
   const msg = (err.message || err.error?.message || JSON.stringify(err)).toLowerCase();
   if (msg.includes('credit') || msg.includes('balance') || msg.includes('billing'))
-    return 'Il tuo credito Anthropic è esaurito. Vai su console.anthropic.com → Billing e ricarica il tuo account.';
+    return 'Il servizio di analisi non è disponibile in questo momento. Riprova più tardi o contatta l\'assistenza.';
   if (msg.includes('invalid') && msg.includes('key') || msg.includes('authentication'))
-    return 'La tua chiave API non è valida. Controlla di averla copiata correttamente da console.anthropic.com → API Keys.';
+    return 'Il servizio di analisi non è configurato correttamente. Contatta l\'assistenza.';
   if (msg.includes('rate limit') || msg.includes('too many'))
     return 'Troppe richieste in poco tempo. Attendi qualche secondo e riprova.';
   if (msg.includes('overloaded') || msg.includes('529'))
@@ -123,12 +132,42 @@ function traduciErroreAnthropic(err) {
 }
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin-super-2025';
 let agentPassword = process.env.ACCESS_PASSWORD || 'agenti2025';
-// Mod AK (rev12): profili Senior e Account (entrambi a stime, come l'ex "agente").
-// Se le env dedicate non sono impostate, ripiegano sulla password agenti esistente (retrocompatibilità).
-const SENIOR_PASSWORD = process.env.SENIOR_PASSWORD || agentPassword;
-const ACCOUNT_PASSWORD = process.env.ACCOUNT_PASSWORD || agentPassword;
-const DEMO_PASSWORD = process.env.EXPERT_PASSWORD || process.env.DEMO_PASSWORD || 'demo2025';
-const DEMO_API_KEY = process.env.EXPERT_API_KEY || process.env.DEMO_API_KEY || ANTHROPIC_API_KEY;
+// ── Piani: FREE (stime, limite mensile) e PRO (dati reali). Internamente il Pro resta profile 'expert'.
+// FREE_PASSWORD ripiega sulle vecchie password Senior/agenti, così chi accedeva prima continua a entrare.
+// Variabile di runtime: getFreePassword() legge agentPassword, che l'admin può cambiare dal pannello.
+function getFreePassword() { return process.env.FREE_PASSWORD || process.env.SENIOR_PASSWORD || agentPassword; }
+const DEMO_PASSWORD = process.env.PRO_PASSWORD || process.env.EXPERT_PASSWORD || process.env.DEMO_PASSWORD || 'demo2025';
+const DEMO_API_KEY = process.env.PRO_API_KEY || process.env.EXPERT_API_KEY || process.env.DEMO_API_KEY || ANTHROPIC_API_KEY;
+const FREE_API_KEY = process.env.FREE_API_KEY || ANTHROPIC_API_KEY || DEMO_API_KEY;
+const FREE_MONTHLY_LIMIT = Math.max(parseInt(process.env.FREE_MONTHLY_LIMIT, 10) || 3, 0);
+
+// Conteggio report Free del mese (DB se disponibile, altrimenti memoria).
+const _freeUsageMem = new Map();
+function _monthKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function freeUserKey(session) { return ((session && (session.email || session.agentName)) || 'anonimo').trim().toLowerCase(); }
+async function getFreeUsage(session) {
+  const k = freeUserKey(session), m = _monthKey();
+  if (dbClient) {
+    try {
+      const r = await dbClient.query('SELECT count FROM free_usage WHERE user_key=$1 AND month=$2', [k, m]);
+      return r.rows.length ? r.rows[0].count : 0;
+    } catch (e) { console.error('getFreeUsage:', e.message); }
+  }
+  return _freeUsageMem.get(k + '|' + m) || 0;
+}
+async function addFreeUsage(session) {
+  const k = freeUserKey(session), m = _monthKey();
+  _freeUsageMem.set(k + '|' + m, (_freeUsageMem.get(k + '|' + m) || 0) + 1);
+  if (dbClient) {
+    try {
+      await dbClient.query('INSERT INTO free_usage (user_key, month, count) VALUES ($1,$2,1) ON CONFLICT (user_key, month) DO UPDATE SET count = free_usage.count + 1', [k, m]);
+    } catch (e) { console.error('addFreeUsage:', e.message); }
+  }
+}
+function isFreeSession(session) { return !!session && session.role === 'agent' && session.profile !== 'expert' && !session.isDemo; }
+function freeLimitMessage() {
+  return 'Hai usato tutti i ' + FREE_MONTHLY_LIMIT + ' report gratuiti di questo mese. Passa al piano Pro per continuare senza limiti.';
+}
 
 // ── Mod AT (rev12): integrazione Apify per dati Facebook REALI (follower, rating, recensioni) ──
 const APIFY_TOKEN = process.env.APIFY_TOKEN || '';
@@ -381,34 +420,45 @@ function isAdmin(req) {
   return session && session.role === 'admin' && Date.now() - session.createdAt < 8 * 60 * 60 * 1000;
 }
 
+// Accesso piano FREE: nome + email (obbligatoria, serve a contare i report del mese) + password.
+// Usa la chiave AI del server; nessuna chiave personale richiesta.
 app.post('/api/login', async (req, res) => {
-  const { password, apiKey, agentName, profile, email } = req.body;
-  // Mod AK (rev12): profilo richiesto (senior | account). Default senior per retrocompatibilità.
-  const prof = (profile === 'account') ? 'account' : 'senior';
-  const expected = prof === 'account' ? ACCOUNT_PASSWORD : SENIOR_PASSWORD;
-  if (!password || password !== expected) return res.status(401).json({ error: 'Password errata' });
-  if (!apiKey || !apiKey.startsWith('sk-ant-')) return res.status(401).json({ error: 'Chiave API non valida. Deve iniziare con sk-ant-' });
-  // Mod AO (rev12): email facoltativa ma, se presente, deve essere valida (formato + dominio reale).
+  const { password, agentName, email } = req.body || {};
+  if (!password || password !== getFreePassword()) return res.status(401).json({ error: 'Password errata.' });
+  if (!FREE_API_KEY) return res.status(500).json({ error: 'Il servizio non è ancora configurato. Contatta l\'assistenza.' });
+  if (!email || !String(email).trim()) return res.status(400).json({ error: 'Inserisci la tua email: serve per il piano Free.' });
   const ev = await validateEmail(email);
   if (!ev.ok) return res.status(400).json({ error: ev.reason === 'formato' ? 'Email non valida: controlla il formato (es. nome@dominio.it).' : 'Email non valida: il dominio non risulta esistente o non riceve posta.' });
   const token = generateToken();
-  const nm = (agentName||'').trim()||'Agente';
-  setSession(token, { createdAt: Date.now(), role: 'agent', apiKey: apiKey.trim(), agentName: nm, profile: prof, email: ev.email || '' });
-  logAgentLogin(nm, prof); // Mod AK: registra il profilo (senior/account)
-  res.json({ token, role: 'agent', profile: prof, email: ev.email || '' });
+  const nm = (agentName||'').trim()||'Utente';
+  const sess = { createdAt: Date.now(), role: 'agent', apiKey: FREE_API_KEY, agentName: nm, profile: 'free', email: ev.email || '' };
+  setSession(token, sess);
+  logAgentLogin(nm, 'free');
+  const used = await getFreeUsage(sess);
+  res.json({ token, role: 'agent', profile: 'free', email: ev.email || '', quota: { used, limit: FREE_MONTHLY_LIMIT } });
 });
 
+// Accesso piano PRO (internamente profile 'expert').
 app.post('/api/login/demo', async (req, res) => {
-  const { password, agentName, email } = req.body;
-  if (!password || password !== DEMO_PASSWORD) return res.status(401).json({ error: 'Password Expert errata.' });
-  if (!DEMO_API_KEY) return res.status(500).json({ error: 'Chiave Expert non configurata. Contatta il responsabile.' });
-  // Mod AO (rev12): validazione email facoltativa.
+  const { password, agentName, email } = req.body || {};
+  if (!password || password !== DEMO_PASSWORD) return res.status(401).json({ error: 'Password Pro errata.' });
+  if (!DEMO_API_KEY) return res.status(500).json({ error: 'Il piano Pro non è ancora configurato. Contatta l\'assistenza.' });
   const ev = await validateEmail(email);
   if (!ev.ok) return res.status(400).json({ error: ev.reason === 'formato' ? 'Email non valida: controlla il formato (es. nome@dominio.it).' : 'Email non valida: il dominio non risulta esistente o non riceve posta.' });
   const token = generateToken();
-  setSession(token, { createdAt: Date.now(), role: 'agent', apiKey: DEMO_API_KEY, isDemo: true, agentName: (agentName||'').trim()||'Expert', profile: 'expert', email: ev.email || '' });
-  logAgentLogin((agentName||'').trim()||'Expert', 'expert'); // Mod AK: ex 'premium' → 'expert'
+  const nm = (agentName||'').trim()||'Utente Pro';
+  setSession(token, { createdAt: Date.now(), role: 'agent', apiKey: DEMO_API_KEY, isDemo: true, agentName: nm, profile: 'expert', email: ev.email || '' });
+  logAgentLogin(nm, 'pro');
   res.json({ token, role: 'agent', profile: 'expert', email: ev.email || '' });
+});
+
+// Report Free rimasti nel mese (per la barra in alto).
+app.get('/api/quota', async (req, res) => {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
+  const sess = sessions.get(req.headers['x-session-token']);
+  if (!isFreeSession(sess)) return res.json({ plan: 'pro', unlimited: true });
+  const used = await getFreeUsage(sess);
+  res.json({ plan: 'free', used, limit: FREE_MONTHLY_LIMIT, remaining: Math.max(FREE_MONTHLY_LIMIT - used, 0) });
 });
 
 app.post('/api/admin/login', (req, res) => {
@@ -447,8 +497,8 @@ app.get('/api/admin/info', (req, res) => {
   const activeList = [...sessions.values()].filter(s => s.role === 'agent' && now - s.createdAt < TTL);
   // Mod Z (rev11): oltre al conteggio, restituisco CHI è attivo (nome, tipo, da quanto).
   const activeAgents = activeList.map(s => ({
-    name: s.agentName || 'Agente',
-    type: s.profile || (s.isDemo ? 'expert' : 'senior'), // Mod AK: profilo reale
+    name: s.agentName || 'Utente',
+    type: (s.profile === 'expert' || s.isDemo) ? 'pro' : 'free',
     email: s.email || '',
     since: s.createdAt,
     minutes: Math.round((now - s.createdAt) / 60000)
@@ -543,7 +593,7 @@ app.post('/api/suggest', async (req, res) => {
   const { company, website, city, comune, provincia, settore, kwCount, compCount, bizType, rilevanza, visibilita, geoAreas, geoMode, geoRadius, apiMode } = req.body;
   if (!company) return res.status(400).json({ error: 'company mancante' });
   const usedKey = getApiKey(req);
-  if (!usedKey) return res.status(500).json({ error: 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.' });
+  if (!usedKey) return res.status(500).json({ error: 'Il servizio di analisi non è configurato. Contatta l\'assistenza.' });
 
   const n = Math.min(Math.max(parseInt(kwCount) || 5, 1), 30);
   const nc = Math.min(Math.max(parseInt(compCount) || 5, 1), 30);
@@ -1279,7 +1329,7 @@ async function runFullAnalysis(req) {
   const { company, website, city, comune, provincia, settore, bizType, rilevanza, visibilita, selectedKeywords, selectedCompetitors, companyInfo, apiMode } = req.body;
   if (!company) throw new AnalysisError(400, 'company mancante');
   const usedKey2 = getApiKey(req);
-  if (!usedKey2) throw new AnalysisError(500, 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.');
+  if (!usedKey2) throw new AnalysisError(500, 'Il servizio di analisi non è configurato. Contatta l\'assistenza.');
 
   const kwList = selectedKeywords.map(k => `"${k.kw}" (vol ~${k.volume}/mese, CPC EUR${k.cpc}, comp: ${k.competition}, intento: ${k.intent})`).join('; ');
   const compList = selectedCompetitors.map(c => `${c.name} (${c.domain})`).join(', ');
@@ -1451,7 +1501,7 @@ Rispondi SOLO con JSON valido (nessun testo, nessun markdown):
     ],
     "seoInvestmentRange": { "min": <stima realistica EUR investimento iniziale SEO+AI per il settore/zona, tipicamente 3000-8000>, "max": <stima realistica EUR investimento massimo SEO+AI>, "note": "investimento one-shot iniziale per impostare strategia SEO e AI" },
     "breakEvenMonths": <numero mesi entro cui l'investimento SEO+AI viene ripagato dal risparmio Ads, calcolato come (seoInvestmentRange.min) / monthlyCost arrotondato>,
-    "commercialMessage": "frase commerciale di 2-3 righe che evidenzia il confronto tra costo Ads annuo e investimento SEO+AI one-shot, con tono diretto da agente commerciale che convince un imprenditore. Esempio: 'Compensare la visibilit\u00e0 persa con Google Ads ti costerebbe X EUR/anno. Investire una volta sola Y EUR in SEO e AI ripaga in Z mesi, e dopo continua a generare contatti gratis ogni mese.'",
+    "commercialMessage": "frase commerciale di 2-3 righe che evidenzia il confronto tra costo Ads annuo e investimento SEO+AI one-shot, con tono diretto da consulente che convince un imprenditore. Esempio: 'Compensare la visibilit\u00e0 persa con Google Ads ti costerebbe X EUR/anno. Investire una volta sola Y EUR in SEO e AI ripaga in Z mesi, e dopo continua a generare contatti gratis ogni mese.'",
     "keywordBreakdown": [
       { "kw": "<keyword>", "volume": <volume>, "cpc": <cpc>, "monthlyClicks": <volume*0.04 arrotondato>, "monthlyCost": <volume*0.04*cpc arrotondato>, "annualCost": <monthlyCost*12 arrotondato> }
     ]
@@ -1560,7 +1610,7 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
     const locationFull = [comune, provincia].filter(Boolean).join(', ') || city || 'Italy';
     const _tok2 = req.headers['x-session-token'];
     const _sess2 = _tok2 ? sessions.get(_tok2) : null;
-    const _profile2 = _sess2 ? (_sess2.profile || (_sess2.isDemo ? 'expert' : 'senior')) : 'senior';
+    const _profile2 = _sess2 ? (_sess2.profile || (_sess2.isDemo ? 'expert' : 'free')) : 'free';
     const _wantsSocial = Array.isArray(parsed.social) && _wants('social');
     const [organicRes, , logoRes, cwvRes, dirRes, trendsRes, aiRealRes, kwRealRes, a11yRes] = await Promise.all([
       _stima
@@ -1681,7 +1731,11 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
 // Rotta storica: comportamento invariato per chi la chiama ancora così (sincrona, un'unica risposta lunga).
 app.post('/api/analyze', async (req, res) => {
   try {
+    const _fs = sessions.get(req.headers['x-session-token']);
+    const _isFree = isFreeSession(_fs);
+    if (_isFree && (await getFreeUsage(_fs)) >= FREE_MONTHLY_LIMIT) return res.status(403).json({ error: freeLimitMessage(), limitReached: true });
     const parsed = await runFullAnalysis(req);
+    if (_isFree) addFreeUsage(_fs);
     res.json(parsed);
   } catch (err) {
     if (err instanceof AnalysisError) return res.status(err.statusCode).json({ error: err.message });
@@ -1702,10 +1756,16 @@ setInterval(() => {
 // #ASYNC: avvia l'analisi in background e risponde SUBITO con un jobId, invece di far aspettare
 // al client un'unica richiesta HTTP lunga (che su Render può cadere per timeout di piattaforma
 // indipendentemente da keepAliveTimeout/headersTimeout impostati sotto — vedi #128/#129/#135).
-app.post('/api/analyze-start', (req, res) => {
+app.post('/api/analyze-start', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
   if (!req.body || !req.body.company) return res.status(400).json({ error: 'company mancante' });
-  if (!getApiKey(req)) return res.status(500).json({ error: 'Nessuna chiave API configurata. Effettua il logout e accedi di nuovo inserendo la tua chiave API.' });
+  if (!getApiKey(req)) return res.status(500).json({ error: 'Il servizio di analisi non è configurato. Contatta l\'assistenza.' });
+  // Piano Free: blocco se il tetto mensile è raggiunto (il report si conta solo quando va a buon fine).
+  const _fs = sessions.get(req.headers['x-session-token']);
+  const _isFree = isFreeSession(_fs);
+  if (_isFree && (await getFreeUsage(_fs)) >= FREE_MONTHLY_LIMIT) {
+    return res.status(403).json({ error: freeLimitMessage(), limitReached: true });
+  }
 
   const jobId = crypto.randomBytes(16).toString('hex');
   analysisJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
@@ -1713,7 +1773,7 @@ app.post('/api/analyze-start', (req, res) => {
 
   // Fire-and-forget: il client farà polling su /api/analyze-status/:jobId.
   runFullAnalysis(req)
-    .then(parsed => { analysisJobs.set(jobId, { status: 'done', data: parsed, createdAt: Date.now() }); })
+    .then(parsed => { analysisJobs.set(jobId, { status: 'done', data: parsed, createdAt: Date.now() }); if (_isFree) addFreeUsage(_fs); })
     .catch(err => {
       const msg = (err instanceof AnalysisError) ? err.message : traduciErroreAnthropic(err);
       console.error('[ASYNC-ANALYZE] job ' + jobId + ' fallito:', msg);
@@ -1806,7 +1866,7 @@ app.post('/api/keyword-data', async (req, res) => {
   const kw = (keyword || '').trim();
   if (!kw) return res.status(400).json({ error: 'keyword mancante' });
   const usedKey = getApiKey(req);
-  if (!usedKey) return res.status(500).json({ error: 'Nessuna chiave API configurata.' });
+  if (!usedKey) return res.status(500).json({ error: 'Il servizio di analisi non è configurato. Contatta l\'assistenza.' });
   // Mod 108: prima provo i dati REALI DataForSEO; se ci sono, li uso (intento via euristica).
   try {
     const real = await fetchKeywordVolumes([kw]);
@@ -1857,7 +1917,7 @@ app.post('/api/quick-ads', async (req, res) => {
   const { keywords, settore, city, website } = req.body || {};
   if (!Array.isArray(keywords) || !keywords.length) return res.status(400).json({ error: 'keyword mancanti' });
   const usedKey = getApiKey(req);
-  if (!usedKey) return res.status(500).json({ error: 'Nessuna chiave API configurata.' });
+  if (!usedKey) return res.status(500).json({ error: 'Il servizio di analisi non è configurato. Contatta l\'assistenza.' });
   const _tok = req.headers['x-session-token'];
   const _sess = _tok ? sessions.get(_tok) : null;
   const isExpert = _sess && (_sess.profile === 'expert' || _sess.isDemo);
@@ -1924,7 +1984,7 @@ app.post('/api/quick-seo', async (req, res) => {
   const { website, keywords, settore, city } = req.body || {};
   if (!website) return res.status(400).json({ error: 'sito mancante' });
   const usedKey = getApiKey(req);
-  if (!usedKey) return res.status(500).json({ error: 'Nessuna chiave API configurata.' });
+  if (!usedKey) return res.status(500).json({ error: 'Il servizio di analisi non è configurato. Contatta l\'assistenza.' });
   const _tok = req.headers['x-session-token'];
   const _sess = _tok ? sessions.get(_tok) : null;
   const isExpert = _sess && (_sess.profile === 'expert' || _sess.isDemo);
@@ -1981,7 +2041,7 @@ app.post('/api/analyze-social', async (req, res) => {
   const link = (url || '').trim();
   if (!plat || !link) return res.status(400).json({ error: 'piattaforma o URL mancante' });
   const usedKey = getApiKey(req);
-  if (!usedKey) return res.status(500).json({ error: 'Nessuna chiave API configurata.' });
+  if (!usedKey) return res.status(500).json({ error: 'Il servizio di analisi non è configurato. Contatta l\'assistenza.' });
 
   // Mod AT: per Facebook, provo prima a leggere i dati REALI via Apify.
   let realData = null;
@@ -2035,7 +2095,7 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`\n✅ SEO AI Tool v4 avviato su http://localhost:${PORT}`);
-  console.log(`🔑 Password agenti: ${agentPassword}`);
+  console.log(`🔑 Piano Free: password configurata, limite ${FREE_MONTHLY_LIMIT} report/mese`);
   console.log(`🛡️  Password admin:  ${ADMIN_PASSWORD}\n`);
   initDB().then(() => hydrateSessions());
 });
