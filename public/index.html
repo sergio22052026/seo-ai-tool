@@ -86,6 +86,54 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 @media(max-width:560px){.plan-cards,.auth-grid{grid-template-columns:1fr}.auth-card{padding:1.5rem 1.25rem}}
 .quota-pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);white-space:nowrap}
 .quota-pill.empty{background:var(--amber-bg);color:var(--amber-text);border-color:transparent}
+.auth-tabs{display:flex;gap:4px;background:var(--bg2);border-radius:10px;padding:4px;margin-bottom:14px}
+.auth-tab{flex:1;border:none;background:transparent;color:var(--text2);font:inherit;font-size:14px;font-weight:600;padding:9px;border-radius:7px;cursor:pointer}
+.auth-tab.on{background:var(--bg);color:var(--navy);box-shadow:0 1px 3px rgba(15,23,42,0.08)}
+.plan-cards-info{margin:18px 0 0}
+.plan-cards-info .plan-card{cursor:default;padding:12px 14px}
+.plan-cards-info .plan-card:hover{border-color:var(--border2)}
+.buy-btn{color:var(--io);border-color:var(--io)}
+.buy-ov{position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem}
+.buy-box{background:var(--bg);border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:1.4rem 1.5rem;box-shadow:0 20px 50px rgba(15,23,42,0.25)}
+.buy-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.buy-title{font-size:19px;font-weight:700}
+.buy-sub{font-size:13px;color:var(--text2);margin-top:2px}
+.buy-reason{background:var(--amber-bg);color:var(--amber-text);border-radius:var(--r);padding:10px 12px;font-size:13px;margin-bottom:14px}
+.buy-packs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.buy-pack{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--border2);border-radius:12px;padding:14px 10px;text-align:center}
+.buy-pack:hover{border-color:var(--io)}
+.buy-pack.on{border:2px solid var(--io);padding:13px 9px;background:rgba(24,95,165,0.05)}
+.buy-pack-cr{font-size:28px;font-weight:800;color:var(--navy);line-height:1.1}
+.buy-pack-lbl{font-size:13px;color:var(--text2)}
+.buy-pack-price{font-size:17px;font-weight:700;margin-top:8px}
+.buy-pack-unit{font-size:12px;color:var(--text3);margin-top:2px}
+.buy-pp{min-height:50px}
+.buy-note{font-size:13px;color:var(--text2);text-align:center;margin-top:8px}
+.buy-loading{font-size:13px;color:var(--text3);text-align:center;padding:20px}
+.buy-msg{display:none;margin-top:12px;border-radius:var(--r);padding:10px 12px;font-size:13px}
+.buy-msg.ok{background:var(--green-bg);color:var(--green-text)}
+.buy-msg.err{background:var(--red-bg);color:var(--red-text)}
+.usr-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;margin-bottom:18px}
+.usr-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.usr-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:7px;color:var(--navy)}
+.usr-new{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--bg2);border-radius:var(--r);padding:10px;margin-bottom:10px}
+.usr-new .pwd-input{flex:1;min-width:160px;height:34px;font-size:13px}
+.usr-hint{flex-basis:100%;font-size:12px;color:var(--text3)}
+.usr-stats{display:flex;gap:10px;margin:10px 0 12px}
+.usr-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.usr-tbl th{font-size:13px;font-weight:700;color:var(--text2);text-align:center;padding:8px 6px;border-bottom:1px solid var(--border2);cursor:pointer;user-select:none;white-space:nowrap}
+.usr-tbl td{padding:8px 6px;border-bottom:1px solid var(--border);vertical-align:middle}
+.usr-tbl td.c{text-align:center}.usr-tbl td.l{text-align:left}
+.usr-sub{font-size:11px;font-weight:400;color:var(--text3)}
+.usr-name{font-weight:600}.usr-mail{font-size:12px;color:var(--text3)}
+.usr-act{white-space:nowrap}.usr-act .icon-btn{margin:0 2px}
+.usr-tag{font-size:12px;font-weight:700;padding:2px 9px;border-radius:6px;background:var(--bg2);color:var(--text2)}
+.usr-tag.pro{background:var(--navy);color:#fff}.usr-tag.ok{background:var(--green-bg);color:var(--green-text)}
+.usr-low{color:var(--red)}
+.usr-off td{opacity:.55}
+.usr-empty{font-size:13px;color:var(--text3);text-align:center;padding:14px}
+.usr-pwd{font-family:monospace;background:var(--bg);padding:2px 8px;border-radius:5px;font-size:14px;user-select:all}
+.usr-pay{margin-top:12px}.usr-pay summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--text2)}
 .topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;gap:8px}
 .topbar-center{position:absolute;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;max-width:36%}
 .topbar-left{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -638,57 +686,71 @@ body.profile-admin #admin-toggle-btn{display:none !important}
       </div>
     </div>
     <div class="auth-card auth-card-wide">
-      <div class="auth-title">Accedi al tuo spazio</div>
-      <div class="auth-sub">Scegli il piano con cui entrare</div>
-
-      <div class="plan-cards" id="plan-cards" role="radiogroup" aria-label="Piano">
-        <button type="button" class="plan-card on" id="plan-free" role="radio" aria-checked="true" onclick="selectPlan('free')">
-          <div class="plan-head"><span class="plan-name">Free</span><span class="plan-chip">Stime</span></div>
-          <div class="plan-desc">Report completo con valori stimati dall'AI. Social: solo Facebook.</div>
-          <ul class="plan-list">
-            <li><i class="ti ti-check" aria-hidden="true"></i>SEO, AI, Google Business, Ads stimati</li>
-            <li><i class="ti ti-check" aria-hidden="true"></i>Report PDF</li>
-            <li class="off"><i class="ti ti-minus" aria-hidden="true"></i>Numero di report limitato al mese</li>
-          </ul>
-        </button>
-        <button type="button" class="plan-card plan-pro" id="plan-pro" role="radio" aria-checked="false" onclick="selectPlan('pro')">
-          <div class="plan-head"><span class="plan-name">Pro</span><span class="plan-chip">Dati reali</span></div>
-          <div class="plan-desc">Volumi e CPC reali, tutti i social, Core Web Vitals reali.</div>
-          <ul class="plan-list">
-            <li><i class="ti ti-check" aria-hidden="true"></i>Tutto quello del Free</li>
-            <li><i class="ti ti-check" aria-hidden="true"></i>Dati reali SEO e Google Ads</li>
-            <li><i class="ti ti-check" aria-hidden="true"></i>Report senza limiti</li>
-          </ul>
-        </button>
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab on" id="tab-login" role="tab" onclick="showLoginForm('login')">Accedi</button>
+        <button type="button" class="auth-tab" id="tab-register" role="tab" onclick="showLoginForm('register')">Crea account Free</button>
       </div>
 
+      <!-- ACCESSO: email + password, Free e Pro -->
       <div id="form-agente">
+        <div class="auth-sub">Entra con la tua email: il piano Free o Pro si riconosce da solo.</div>
+        <label class="auth-label" for="agent-email">Email</label>
+        <input class="auth-input" id="agent-email" type="email" placeholder="nome@azienda.it" autocomplete="email" />
+        <label class="auth-label" for="agent-pwd" style="margin-top:12px">Password</label>
+        <input class="auth-input" id="agent-pwd" type="password" placeholder="La tua password" autocomplete="current-password" />
+        <button class="auth-btn" onclick="planLogin()"><i class="ti ti-login" aria-hidden="true"></i>Accedi</button>
+        <div class="auth-note" style="justify-content:center;margin-bottom:0">Non hai un account?&nbsp;<span class="auth-link" onclick="showLoginForm('register')">Crea account Free</span></div>
+      </div>
+
+      <!-- REGISTRAZIONE FREE -->
+      <div id="form-register" style="display:none">
+        <div class="auth-sub">Crea il tuo account gratuito: <b>3 report al mese</b>, senza carta di credito.</div>
         <div class="auth-grid">
           <div>
             <label class="auth-label" for="agent-name">Nome e cognome</label>
             <input class="auth-input" id="agent-name" type="text" placeholder="Mario Rossi" autocomplete="name" />
           </div>
           <div>
-            <label class="auth-label" for="agent-email" id="login-email-lbl">Email</label>
-            <input class="auth-input" id="agent-email" type="email" placeholder="nome@azienda.it" autocomplete="email" />
+            <label class="auth-label" for="reg-email">Email</label>
+            <input class="auth-input" id="reg-email" type="email" placeholder="nome@azienda.it" autocomplete="email" />
           </div>
           <div class="auth-full">
-            <label class="auth-label" for="agent-pwd">Password</label>
-            <input class="auth-input" id="agent-pwd" type="password" placeholder="Password del piano Free" autocomplete="current-password" />
+            <label class="auth-label" for="reg-pwd">Scegli una password <span class="auth-opt">(almeno 8 caratteri)</span></label>
+            <input class="auth-input" id="reg-pwd" type="password" placeholder="Password" autocomplete="new-password" />
           </div>
         </div>
         <div class="auth-note"><i class="ti ti-info-circle" aria-hidden="true"></i>Nome ed email compaiono nel report PDF che consegni al cliente.</div>
-        <button class="auth-btn" onclick="planLogin()"><i class="ti ti-login" aria-hidden="true"></i><span id="login-btn-lbl">Accedi con Free</span></button>
+        <button class="auth-btn" onclick="registerFree()"><i class="ti ti-user-plus" aria-hidden="true"></i>Crea account e accedi</button>
       </div>
 
+      <!-- ADMIN -->
       <div id="form-admin-inline" style="display:none">
         <label class="auth-label" for="admin-pwd-inline">Password amministratore</label>
         <input class="auth-input" id="admin-pwd-inline" type="password" placeholder="Password amministratore" />
-        <button class="auth-btn" onclick="adminLoginInline()"><i class="ti ti-shield-check" aria-hidden="true"></i>Accedi come amministratore</button>
-        <div style="text-align:center;margin-top:12px"><span class="auth-link" onclick="showLoginForm('plan')">← Torna ai piani</span></div>
+        <button class="auth-btn" onclick="adminLoginInline()"><i class="ti ti-shield-check" aria-hidden="true"></i>Accedi al pannello amministratore</button>
+        <div style="text-align:center;margin-top:12px"><span class="auth-link" onclick="showLoginForm('login')">← Torna all'accesso</span></div>
       </div>
 
       <div class="auth-error" id="agent-err">Errore di accesso. Riprova.</div>
+
+      <div class="plan-cards plan-cards-info" id="plan-cards">
+        <div class="plan-card">
+          <div class="plan-head"><span class="plan-name">Free</span><span class="plan-chip">Stime</span></div>
+          <ul class="plan-list">
+            <li><i class="ti ti-check" aria-hidden="true"></i>3 report al mese con valori stimati</li>
+            <li><i class="ti ti-check" aria-hidden="true"></i>Report PDF</li>
+            <li class="off"><i class="ti ti-minus" aria-hidden="true"></i>Social: solo Facebook</li>
+          </ul>
+        </div>
+        <div class="plan-card plan-pro">
+          <div class="plan-head"><span class="plan-name">Pro</span><span class="plan-chip">Dati reali</span></div>
+          <ul class="plan-list">
+            <li><i class="ti ti-check" aria-hidden="true"></i>Volumi, CPC e Core Web Vitals reali</li>
+            <li><i class="ti ti-check" aria-hidden="true"></i>Tutti i social</li>
+            <li><i class="ti ti-check" aria-hidden="true"></i>A crediti: 1 credito = 1 report</li>
+          </ul>
+        </div>
+      </div>
     </div>
     <div class="auth-foot">© 2026 Digital Analyzer Pro · <span class="auth-link" onclick="showLoginForm('admin')">Area amministratore</span></div>
   </div>
@@ -719,6 +781,7 @@ body.profile-admin #admin-toggle-btn{display:none !important}
       <div class="topbar-divider"></div>
       <span class="role-badge" id="role-badge"></span>
       <span class="quota-pill" id="quota-pill" style="display:none"></span>
+      <button class="icon-btn buy-btn" id="buy-credits-btn" onclick="openBuyCredits()" style="display:none"><i class="ti ti-shopping-cart" aria-hidden="true"></i>Acquista crediti</button>
       <button class="archive-btn" id="archive-btn" onclick="toggleArchive()" title="Archivio analisi" style="display:none">
         <i class="ti ti-archive" style="font-size:15px"></i>
         <span style="font-weight:600">Archivio</span>
@@ -749,14 +812,35 @@ body.profile-admin #admin-toggle-btn{display:none !important}
     <!-- Mod AJ (rev11): intestazione cruscotto — titolo + password compatta a destra -->
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
       <div class="admin-title" style="margin:0"><i class="ti ti-shield-check" style="font-size:14px"></i>Pannello amministratore</div>
-      <div style="background:var(--bg2);border-radius:var(--r);padding:7px 11px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="display:none">
         <span style="font-size:11px;color:var(--text2);white-space:nowrap"><i class="ti ti-key" style="font-size:13px;vertical-align:-2px;margin-right:3px"></i>Password: <strong id="current-pwd-display" style="font-family:monospace">—</strong></span>
         <input class="pwd-input" id="new-pwd" type="text" placeholder="nuova" style="height:28px;font-size:11px;width:100px;padding:4px 8px" />
         <button class="pwd-btn" onclick="changePassword()" style="font-size:11px;padding:5px 10px">Aggiorna</button>
         <div class="admin-msg" id="admin-msg" style="flex-basis:100%"></div>
       </div>
     </div>
-    <!-- Mod AN: sezione personale (Sergio) — report + accessi, esclusa dalla rete -->
+    <!-- Utenti: account Free e Pro, crediti, pagamenti -->
+    <div class="usr-box">
+      <div class="usr-head">
+        <div class="usr-title"><i class="ti ti-users" aria-hidden="true"></i>Utenti</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input class="pwd-input" id="usr-search" placeholder="Cerca nome o email" oninput="renderUsersTable()" style="height:32px;font-size:13px;width:200px;flex:none" />
+          <button class="icon-btn" onclick="loadAdminUsers()"><i class="ti ti-refresh" aria-hidden="true"></i>Aggiorna</button>
+          <button class="icon-btn buy-btn" onclick="toggleNewUser()"><i class="ti ti-user-plus" aria-hidden="true"></i>Nuovo utente Pro</button>
+        </div>
+      </div>
+      <div id="usr-new" class="usr-new" style="display:none">
+        <input class="pwd-input" id="nu-name" placeholder="Nome e cognome" />
+        <input class="pwd-input" id="nu-email" type="email" placeholder="Email" />
+        <input class="pwd-input" id="nu-credits" type="number" min="0" step="1" placeholder="Crediti iniziali" style="max-width:150px" />
+        <button class="pwd-btn" onclick="createProUser()">Crea utente</button>
+        <div class="usr-hint">La password viene generata e mostrata una sola volta: copiala e mandala al cliente.</div>
+      </div>
+      <div class="admin-msg" id="usr-msg"></div>
+      <div class="usr-stats" id="usr-stats"></div>
+      <div id="usr-table"><div class="usr-empty">Caricamento…</div></div>
+      <details class="usr-pay"><summary>Pagamenti PayPal</summary><div id="usr-payments"><div class="usr-empty">Caricamento…</div></div></details>
+    </div>    <!-- Mod AN: sezione personale (Sergio) — report + accessi, esclusa dalla rete -->
     <div style="background:rgba(24,95,165,0.06);border:2px solid var(--io);border-radius:var(--rl);padding:13px 15px;margin-bottom:18px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <div style="width:32px;height:32px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--io)">SP</div>
@@ -2115,75 +2199,85 @@ window.addEventListener('load',()=>{
   if(token) enterApp(userRole); else showScreen('s-login');
   // Ritorno dal report admin: riapro il pannello.
   try{ if(sessionStorage.getItem('seo_reopen_admin')==='1'){ sessionStorage.removeItem('seo_reopen_admin'); setTimeout(()=>{ const ap=document.getElementById('admin-panel'); if(ap){ adminPanelOpen=true; ap.style.display='block'; if(typeof loadAdminInfo==='function')loadAdminInfo(); } },300); } }catch(_){}
-  try{ localStorage.removeItem('seo_agent_key'); }catch(_){} // vecchia chiave personale: non serve più
-  const savedName=localStorage.getItem('seo_agent_name');
-  if(savedName){const an=document.getElementById('agent-name');if(an)an.value=savedName;}
+  try{ localStorage.removeItem('seo_agent_key'); localStorage.removeItem('seo_plan'); }catch(_){} // dati dei vecchi accessi
   const savedEmail=localStorage.getItem('seo_agent_email');
   if(savedEmail){const ae=document.getElementById('agent-email');if(ae)ae.value=savedEmail;}
-  const savedPlan=localStorage.getItem('seo_plan');
-  selectPlan(savedPlan==='pro'?'pro':'free');
-  document.getElementById('agent-name').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('agent-email').focus()});
+  showLoginForm('login');
   document.getElementById('agent-email').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('agent-pwd').focus()});
   document.getElementById('agent-pwd').addEventListener('keydown',e=>{if(e.key==='Enter')planLogin()});
+  document.getElementById('reg-pwd').addEventListener('keydown',e=>{if(e.key==='Enter')registerFree()});
   document.getElementById('admin-pwd-inline').addEventListener('keydown',e=>{if(e.key==='Enter')adminLoginInline()});
   document.getElementById('admin-pwd').addEventListener('keydown',e=>{if(e.key==='Enter')adminLogin()});
 });
 
-// Piani di accesso: 'free' (stime, report limitati al mese) e 'pro' (dati reali).
-let _selectedPlan='free';
-function selectPlan(plan){
-  _selectedPlan=(plan==='pro')?'pro':'free';
-  ['free','pro'].forEach(p=>{const c=document.getElementById('plan-'+p);if(c){c.classList.toggle('on',p===_selectedPlan);c.setAttribute('aria-checked',p===_selectedPlan?'true':'false');}});
-  const pw=document.getElementById('agent-pwd'); if(pw)pw.placeholder=(_selectedPlan==='pro')?'Password del piano Pro':'Password del piano Free';
-  const bl=document.getElementById('login-btn-lbl'); if(bl)bl.textContent=(_selectedPlan==='pro')?'Accedi con Pro':'Accedi con Free';
-  const el=document.getElementById('login-email-lbl'); if(el)el.innerHTML=(_selectedPlan==='pro')?'Email <span class="auth-opt">(facoltativa)</span>':'Email';
-  showLoginForm('plan');
+// Identificativo anonimo del dispositivo: serve solo a contare i report Free anche per browser.
+function getDeviceId(){
+  let d=localStorage.getItem('dap_device');
+  if(!d){ d=(crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).slice(2))); localStorage.setItem('dap_device',d); }
+  return d;
 }
 function showLoginForm(which){
-  const pf=document.getElementById('form-agente'), af=document.getElementById('form-admin-inline'), pc=document.getElementById('plan-cards');
-  if(pf)pf.style.display=(which==='admin')?'none':'block';
-  if(pc)pc.style.display=(which==='admin')?'none':'grid';
-  if(af)af.style.display=(which==='admin')?'block':'none';
+  const forms={login:'form-agente',register:'form-register',admin:'form-admin-inline'};
+  Object.entries(forms).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.style.display=(k===which)?'block':'none';});
+  ['login','register'].forEach(k=>{const t=document.getElementById('tab-'+k);if(t)t.classList.toggle('on',k===which);});
+  const tabs=document.querySelector('.auth-tabs'); if(tabs)tabs.style.display=(which==='admin')?'none':'flex';
+  const pc=document.getElementById('plan-cards'); if(pc)pc.style.display=(which==='admin')?'none':'grid';
   const errEl=document.getElementById('agent-err'); if(errEl)errEl.style.display='none';
-  setTimeout(()=>{ const f=document.getElementById(which==='admin'?'admin-pwd-inline':'agent-name'); if(f)f.focus(); },50);
+  const first={login:'agent-email',register:'agent-name',admin:'admin-pwd-inline'}[which];
+  setTimeout(()=>{const f=document.getElementById(first);if(f)f.focus();},50);
 }
 function showAgentLogin(){
-  document.getElementById('agent-err').style.display='none';
   document.getElementById('agent-pwd').value='';
   document.getElementById('admin-pwd-inline').value='';
-  const an=document.getElementById('agent-name'); if(an)an.value=localStorage.getItem('seo_agent_name')||'';
   const ae=document.getElementById('agent-email'); if(ae)ae.value=localStorage.getItem('seo_agent_email')||'';
-  selectPlan(localStorage.getItem('seo_plan')==='pro'?'pro':'free');
+  showLoginForm('login');
   showScreen('s-login');
 }
 // Compatibilità con chiamate esistenti.
-function switchLoginTab(tab){ if(tab==='admin')showLoginForm('admin'); else selectPlan(tab==='demo'||tab==='pro'?'pro':'free'); }
+function switchLoginTab(tab){ showLoginForm(tab==='admin'?'admin':'login'); }
+function selectPlan(){ showLoginForm('login'); }
+function _loginFail(m){const err=document.getElementById('agent-err');err.textContent=m;err.style.display='block';}
+// Dopo un accesso o una registrazione riusciti: salvo sessione e dati per il PDF ed entro.
+function _enterAfterAuth(d){
+  const me=d.me||{};
+  if(me.name)localStorage.setItem('seo_agent_name',me.name);
+  if(me.email){localStorage.setItem('seo_agent_email',me.email);sessionStorage.setItem('seo_agent_email',me.email);}
+  const isPro=d.profile==='expert';
+  window._isDemo=isPro; if(isPro)sessionStorage.setItem('seo_is_demo','1'); else sessionStorage.removeItem('seo_is_demo');
+  window._userProfile=isPro?'expert':'free';sessionStorage.setItem('seo_profile',window._userProfile);
+  window._me=me;
+  token=d.token;userRole='agent';sessionStorage.setItem('seo_token',token);sessionStorage.setItem('seo_role','agent');enterApp('agent');
+}
 async function planLogin(){
-  const pwd=document.getElementById('agent-pwd').value;
-  const name=(document.getElementById('agent-name').value||'').trim();
   const email=(document.getElementById('agent-email').value||'').trim();
-  const err=document.getElementById('agent-err');err.style.display='none';
-  const fail=m=>{err.textContent=m;err.style.display='block';};
-  if(!name)return fail('Inserisci nome e cognome.');
-  if(_selectedPlan==='free'&&!email)return fail('Inserisci la tua email: serve per il piano Free.');
-  if(!pwd)return fail('Inserisci la password.');
-  const isPro=_selectedPlan==='pro';
+  const pwd=document.getElementById('agent-pwd').value;
+  document.getElementById('agent-err').style.display='none';
+  if(!email)return _loginFail('Inserisci la tua email.');
+  if(!pwd)return _loginFail('Inserisci la password.');
   try{
-    const r=await fetch(isPro?'/api/login/demo':'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pwd,agentName:name,email})});
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json','x-device-id':getDeviceId()},body:JSON.stringify({email,password:pwd})});
     const d=await r.json();
-    if(d.error){fail(d.error);document.getElementById('agent-pwd').value='';return;}
-    localStorage.setItem('seo_agent_name',name);
-    if(email)localStorage.setItem('seo_agent_email',email);
-    localStorage.setItem('seo_plan',_selectedPlan);
-    if(d.email)sessionStorage.setItem('seo_agent_email',d.email); else sessionStorage.removeItem('seo_agent_email');
-    window._isDemo=isPro; if(isPro)sessionStorage.setItem('seo_is_demo','1'); else sessionStorage.removeItem('seo_is_demo');
-    window._userProfile=isPro?'expert':'free';sessionStorage.setItem('seo_profile',window._userProfile);
-    if(d.quota)window._freeQuota=d.quota;
-    token=d.token;userRole='agent';sessionStorage.setItem('seo_token',token);sessionStorage.setItem('seo_role','agent');enterApp('agent');
-  }catch(e){fail('Errore di rete. Riprova.');}
+    if(d.error){_loginFail(d.error);document.getElementById('agent-pwd').value='';return;}
+    _enterAfterAuth(d);
+  }catch(e){_loginFail('Errore di rete. Riprova.');}
+}
+async function registerFree(){
+  const name=(document.getElementById('agent-name').value||'').trim();
+  const email=(document.getElementById('reg-email').value||'').trim();
+  const pwd=document.getElementById('reg-pwd').value;
+  document.getElementById('agent-err').style.display='none';
+  if(!name)return _loginFail('Inserisci nome e cognome.');
+  if(!email)return _loginFail('Inserisci la tua email.');
+  if(!pwd||pwd.length<8)return _loginFail('La password deve avere almeno 8 caratteri.');
+  try{
+    const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json','x-device-id':getDeviceId()},body:JSON.stringify({name,email,password:pwd})});
+    const d=await r.json();
+    if(d.error){_loginFail(d.error);return;}
+    _enterAfterAuth(d);
+  }catch(e){_loginFail('Errore di rete. Riprova.');}
 }
 function agentLogin(){ return planLogin(); }
-function demoLogin(){ selectPlan('pro'); return planLogin(); }
+function demoLogin(){ return planLogin(); }
 async function adminLoginInline(){
   const pwd=document.getElementById('admin-pwd-inline').value;
   const err=document.getElementById('agent-err');err.style.display='none';
@@ -2197,16 +2291,81 @@ async function adminLoginInline(){
   }catch(e){err.textContent='Errore di rete. Riprova.';err.style.display='block';}
 }
 function showAdminLogin(){document.getElementById('admin-err').style.display='none';document.getElementById('admin-pwd').value='';showScreen('s-admin');setTimeout(()=>document.getElementById('admin-pwd').focus(),100)}
-// Barra «report Free rimasti» nella topbar.
+
+// Barra in alto: report Free rimasti oppure crediti Pro, con pulsante d'acquisto.
 async function refreshQuota(){
-  const el=document.getElementById('quota-pill'); if(!el)return;
-  const isPro=window._isDemo||sessionStorage.getItem('seo_is_demo')==='1';
-  if(userRole!=='agent'||isPro){el.style.display='none';return;}
+  const el=document.getElementById('quota-pill'); const buy=document.getElementById('buy-credits-btn');
+  if(!el)return;
+  if(userRole!=='agent'){el.style.display='none';if(buy)buy.style.display='none';return;}
   try{
-    const r=await fetch('/api/quota',{headers:{'x-session-token':getToken()}}); const q=await r.json();
-    if(q&&q.plan==='free'){ el.style.display='inline-flex'; el.classList.toggle('empty',q.remaining<=0); el.innerHTML='<i class="ti ti-gauge" aria-hidden="true"></i>'+q.remaining+' di '+q.limit+' report gratuiti rimasti'; }
-    else el.style.display='none';
+    const r=await fetch('/api/me',{headers:{'x-session-token':getToken(),'x-device-id':getDeviceId()}}); const me=await r.json();
+    window._me=me;
+    if(me.unlimited){ el.style.display='inline-flex'; el.classList.remove('empty'); el.innerHTML='<i class="ti ti-infinity" aria-hidden="true"></i>Accesso titolare'; if(buy)buy.style.display='none'; return; }
+    if(me.plan==='pro'){
+      el.style.display='inline-flex'; el.classList.toggle('empty',(me.credits||0)<=0);
+      el.innerHTML='<i class="ti ti-coins" aria-hidden="true"></i>'+(me.credits||0)+' crediti';
+    } else if(me.plan==='free'){
+      el.style.display='inline-flex'; el.classList.toggle('empty',me.freeRemaining<=0);
+      el.innerHTML='<i class="ti ti-gauge" aria-hidden="true"></i>'+me.freeRemaining+' di '+me.freeLimit+' report gratuiti';
+    } else el.style.display='none';
+    if(buy)buy.style.display='inline-flex';
+    const badge=document.getElementById('role-badge');
+    if(badge&&me.plan){ const pro=me.plan==='pro'; badge.textContent=pro?'Pro':'Free'; badge.className='role-badge '+(pro?'role-demo':'role-agent'); }
   }catch(_){ el.style.display='none'; }
+}
+
+// ── Acquisto crediti con PayPal ──
+let _billingCfg=null, _ppSdkLoaded=false;
+async function openBuyCredits(reason){
+  const old=document.getElementById('buy-ov'); if(old)old.remove();
+  const ov=document.createElement('div'); ov.id='buy-ov'; ov.className='buy-ov';
+  ov.innerHTML='<div class="buy-box" role="dialog" aria-label="Acquista crediti"><div class="buy-head"><div><div class="buy-title">Acquista crediti Pro</div><div class="buy-sub">1 credito = 1 report completo con dati reali</div></div><button class="icon-btn" onclick="closeBuyCredits()" aria-label="Chiudi"><i class="ti ti-x"></i></button></div>'+
+    (reason?'<div class="buy-reason">'+reason+'</div>':'')+
+    '<div id="buy-body"><div class="buy-loading">Caricamento…</div></div></div>';
+  ov.addEventListener('click',e=>{if(e.target===ov)closeBuyCredits();});
+  document.body.appendChild(ov);
+  try{ _billingCfg=await fetch('/api/billing/config').then(r=>r.json()); }catch(_){ _billingCfg={enabled:false,packs:[]}; }
+  const body=document.getElementById('buy-body'); if(!body)return;
+  const packs=(_billingCfg.packs||[]);
+  const fmt=v=>Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
+  body.innerHTML='<div class="buy-packs">'+packs.map((p,i)=>'<button type="button" class="buy-pack'+(i===1||packs.length===1?' on':'')+'" data-id="'+p.id+'" onclick="_selectPack(this)"><div class="buy-pack-cr">'+p.credits+'</div><div class="buy-pack-lbl">crediti</div><div class="buy-pack-price">'+fmt(p.price)+' €</div><div class="buy-pack-unit">'+fmt(p.price/p.credits)+' € a report</div></button>').join('')+'</div>'+
+    (_billingCfg.enabled?'<div id="paypal-buttons" class="buy-pp"></div>'+(_billingCfg.mode==='sandbox'?'<div class="buy-note">Modalità di prova (sandbox): nessun addebito reale.</div>':''):'<div class="buy-note">Il pagamento online non è ancora attivo. Per acquistare crediti contatta l\'assistenza.</div>')+
+    '<div class="buy-msg" id="buy-msg"></div>';
+  if(_billingCfg.enabled) _renderPayPal();
+}
+function closeBuyCredits(){const ov=document.getElementById('buy-ov');if(ov)ov.remove();}
+function _selectPack(btn){document.querySelectorAll('.buy-pack').forEach(b=>b.classList.toggle('on',b===btn));}
+function _selectedPackId(){const b=document.querySelector('.buy-pack.on')||document.querySelector('.buy-pack');return b?b.dataset.id:null;}
+function _buyMsg(t,ok){const m=document.getElementById('buy-msg');if(!m)return;m.textContent=t;m.className='buy-msg '+(ok?'ok':'err');m.style.display='block';}
+function _renderPayPal(){
+  const draw=()=>{
+    const box=document.getElementById('paypal-buttons'); if(!box||!window.paypal)return;
+    window.paypal.Buttons({
+      style:{layout:'vertical',shape:'rect',label:'pay',height:42},
+      createOrder:async()=>{
+        const r=await fetch('/api/billing/create-order',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify({packId:_selectedPackId()})});
+        const d=await r.json(); if(d.error){_buyMsg(d.error,false);throw new Error(d.error);} return d.orderId;
+      },
+      onApprove:async(data)=>{
+        _buyMsg('Verifica del pagamento in corso…',true);
+        const r=await fetch('/api/billing/capture',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify({orderId:data.orderID})});
+        const d=await r.json();
+        if(d.error){_buyMsg(d.error,false);return;}
+        _buyMsg('Pagamento ricevuto: ora hai '+d.credits+' crediti.',true);
+        window._isDemo=true;sessionStorage.setItem('seo_is_demo','1');window._userProfile='expert';sessionStorage.setItem('seo_profile','expert');
+        document.body.classList.add('profile-premium');document.body.classList.remove('profile-agente');
+        refreshQuota();
+      },
+      onCancel:()=>_buyMsg('Pagamento annullato: nessun addebito.',false),
+      onError:()=>_buyMsg('PayPal non è riuscito a completare il pagamento. Riprova.',false)
+    }).render('#paypal-buttons');
+  };
+  if(_ppSdkLoaded&&window.paypal){draw();return;}
+  const s=document.createElement('script');
+  s.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(_billingCfg.clientId)+'&currency='+encodeURIComponent(_billingCfg.currency||'EUR')+'&intent=capture&locale=it_IT';
+  s.onload=()=>{_ppSdkLoaded=true;draw();};
+  s.onerror=()=>_buyMsg('Impossibile caricare PayPal. Controlla la connessione.',false);
+  document.head.appendChild(s);
 }
 async function adminLogin(){
   const pwd=document.getElementById('admin-pwd').value;const err=document.getElementById('admin-err');err.style.display='none';
@@ -2270,7 +2429,86 @@ function enterApp(role){
   renderHistory('archive');
 }
 function toggleAdminPanel(){adminPanelOpen=!adminPanelOpen;document.getElementById('admin-panel').style.display=adminPanelOpen?'block':'none';if(adminPanelOpen)loadAdminInfo();}
+// ── Pannello admin: utenti (Free/Pro), crediti, pagamenti ──
+window._usrSort={k:'createdAt',dir:-1};
+function _esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function _usrMsg(t,ok){const m=document.getElementById('usr-msg');if(!m)return;m.innerHTML=t;m.className='admin-msg '+(ok?'ok':'err');m.style.display='block';}
+function toggleNewUser(){const b=document.getElementById('usr-new');if(b)b.style.display=(b.style.display==='none')?'flex':'none';}
+async function loadAdminUsers(){
+  const w=document.getElementById('usr-table'); if(!w)return;
+  try{
+    const d=await fetch('/api/admin/users',{headers:{'x-session-token':getToken()}}).then(r=>r.json());
+    if(d.error){w.innerHTML='<div class="usr-empty">'+_esc(d.error)+'</div>';return;}
+    if(!d.dbEnabled){w.innerHTML='<div class="usr-empty">Database non connesso: gli account richiedono DATABASE_URL su Render.</div>';return;}
+    window._adminUsers=d.users||[]; window._freeLimit=d.freeLimit||3;
+    renderUsersTable();
+  }catch(e){w.innerHTML='<div class="usr-empty">Errore: '+_esc(e.message)+'</div>';}
+  try{
+    const p=await fetch('/api/admin/payments',{headers:{'x-session-token':getToken()}}).then(r=>r.json());
+    const pw=document.getElementById('usr-payments'); const list=p.payments||[];
+    const fmtD=s=>new Date(s).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    if(pw)pw.innerHTML=list.length?'<table class="usr-tbl"><thead><tr><th>Data</th><th>Utente</th><th>Crediti</th><th>Importo</th><th>Stato</th></tr></thead><tbody>'+list.map(x=>'<tr><td class="c">'+fmtD(x.created_at)+'</td><td class="l">'+_esc(x.user_email)+'</td><td class="c">'+x.credits+'</td><td class="c">'+Number(x.amount).toLocaleString('it-IT',{minimumFractionDigits:2})+' '+_esc(x.currency)+'</td><td class="c">'+(x.status==='COMPLETED'?'<span class="usr-tag ok">Pagato</span>':'<span class="usr-tag">'+_esc(x.status)+'</span>')+'</td></tr>').join('')+'</tbody></table>':'<div class="usr-empty">Nessun pagamento.</div>';
+  }catch(_){}
+}
+function sortUsers(k){const s=window._usrSort;if(s.k===k)s.dir=-s.dir;else{s.k=k;s.dir=(k==='name'||k==='email'||k==='plan')?1:-1;}renderUsersTable();}
+function renderUsersTable(){
+  const w=document.getElementById('usr-table'); if(!w)return;
+  const all=window._adminUsers||[]; const q=((document.getElementById('usr-search')||{}).value||'').toLowerCase().trim();
+  const list=all.filter(u=>!q||(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q));
+  const s=window._usrSort; const val=u=>s.k==='credits'?(u.plan==='pro'?u.credits:-1):(s.k==='createdAt'||s.k==='lastLogin')?new Date(u[s.k]||0).getTime():String(u[s.k]||'').toLowerCase();
+  list.sort((a,b)=>{const x=val(a),y=val(b);return x<y?-s.dir:x>y?s.dir:0;});
+  const pro=all.filter(u=>u.plan==='pro'), free=all.filter(u=>u.plan!=='pro');
+  const st=document.getElementById('usr-stats');
+  if(st)st.innerHTML='<div class="stat"><div class="stat-val">'+free.length.toLocaleString('it-IT')+'</div><div class="stat-lbl">utenti Free</div></div><div class="stat"><div class="stat-val">'+pro.length.toLocaleString('it-IT')+'</div><div class="stat-lbl">utenti Pro</div></div><div class="stat"><div class="stat-val">'+pro.reduce((a,u)=>a+(u.credits||0),0).toLocaleString('it-IT')+'</div><div class="stat-lbl">crediti Pro residui</div></div>';
+  const arrow=k=>s.k===k?(s.dir>0?' ▲':' ▼'):'';
+  const th=(k,l,sub)=>'<th onclick="sortUsers(\''+k+'\')">'+l+arrow(k)+(sub?'<br><span class="usr-sub">('+sub+')</span>':'')+'</th>';
+  const fmtD=v=>v?new Date(v).toLocaleDateString('it-IT'):'—';
+  if(!list.length){w.innerHTML='<div class="usr-empty">'+(all.length?'Nessun utente corrisponde alla ricerca.':'Ancora nessun utente registrato.')+'</div>';return;}
+  w.innerHTML='<table class="usr-tbl"><thead><tr>'+th('name','Utente')+th('plan','Piano')+th('credits','Crediti','Pro: rimasti · Free: usati nel mese')+th('lastLogin','Ultimo accesso')+th('createdAt','Iscritto')+'<th>Azioni</th></tr></thead><tbody>'+
+    list.map(u=>{
+      const isPro=u.plan==='pro';
+      const cr=isPro?'<b class="'+(u.credits<=2?'usr-low':'')+'">'+u.credits.toLocaleString('it-IT')+'</b>':(u.freeUsed||0)+' di '+(window._freeLimit||3);
+      const tag=!u.active?'<span class="usr-tag">Disattivato</span>':isPro?'<span class="usr-tag pro">Pro</span>':'<span class="usr-tag">Free</span>';
+      return '<tr class="'+(u.active?'':'usr-off')+'"><td class="l"><div class="usr-name">'+_esc(u.name)+'</div><div class="usr-mail">'+_esc(u.email)+'</div></td><td class="c">'+tag+'</td><td class="c">'+cr+'</td><td class="c">'+fmtD(u.lastLogin)+'</td><td class="c">'+fmtD(u.createdAt)+'</td><td class="c usr-act">'+
+        '<button class="icon-btn" onclick="usrCredits('+u.id+')" title="Aggiungi o togli crediti"><i class="ti ti-coins"></i>Ricarica</button>'+
+        (isPro?'<button class="icon-btn" onclick="usrAction('+u.id+',{plan:\'free\'},\'Passato a Free\')" title="Porta al piano Free"><i class="ti ti-arrow-down"></i>Free</button>':'<button class="icon-btn" onclick="usrAction('+u.id+',{plan:\'pro\'},\'Passato a Pro\')" title="Porta al piano Pro"><i class="ti ti-arrow-up"></i>Pro</button>')+
+        '<button class="icon-btn" onclick="usrResetPwd('+u.id+')" title="Genera una nuova password"><i class="ti ti-key"></i></button>'+
+        (u.active?'<button class="icon-btn" onclick="usrAction('+u.id+',{active:false},\'Utente disattivato\')" title="Disattiva"><i class="ti ti-ban"></i></button>':'<button class="icon-btn" onclick="usrAction('+u.id+',{active:true},\'Utente riattivato\')" title="Riattiva"><i class="ti ti-player-play"></i></button>')+
+        '</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+async function usrAction(id,body,okMsg){
+  try{
+    const d=await fetch('/api/admin/users/'+id,{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify(body)}).then(r=>r.json());
+    if(d.error){_usrMsg(_esc(d.error),false);return null;}
+    if(okMsg)_usrMsg(_esc(okMsg)+' — '+_esc(d.user&&d.user.email),true);
+    await loadAdminUsers(); return d;
+  }catch(e){_usrMsg('Errore di rete.',false);return null;}
+}
+async function usrCredits(id){
+  const v=prompt('Quanti crediti vuoi aggiungere? (numero negativo per toglierli)','10'); if(v===null)return;
+  const n=parseInt(v,10); if(!n){_usrMsg('Inserisci un numero diverso da zero.',false);return;}
+  await usrAction(id,{addCredits:n},(n>0?'Aggiunti ':'Tolti ')+Math.abs(n)+' crediti');
+}
+async function usrResetPwd(id){
+  if(!confirm('Generare una nuova password per questo utente? Quella attuale smetterà di funzionare.'))return;
+  const d=await usrAction(id,{resetPassword:true},null);
+  if(d&&d.password)_usrMsg('Nuova password per <b>'+_esc(d.user.email)+'</b>: <code class="usr-pwd">'+_esc(d.password)+'</code> — copiala ora, non verrà più mostrata.',true);
+}
+async function createProUser(){
+  const name=(document.getElementById('nu-name').value||'').trim(), email=(document.getElementById('nu-email').value||'').trim();
+  const credits=parseInt(document.getElementById('nu-credits').value,10)||0;
+  if(!email){_usrMsg('Inserisci l\'email.',false);return;}
+  try{
+    const d=await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},body:JSON.stringify({name,email,credits,plan:'pro'})}).then(r=>r.json());
+    if(d.error){_usrMsg(_esc(d.error),false);return;}
+    ['nu-name','nu-email','nu-credits'].forEach(i=>{document.getElementById(i).value='';});
+    _usrMsg('Utente Pro creato: <b>'+_esc(d.user.email)+'</b> · password <code class="usr-pwd">'+_esc(d.password)+'</code> — copiala ora e mandala al cliente.',true);
+    loadAdminUsers();
+  }catch(e){_usrMsg('Errore di rete.',false);}
+}
 async function loadAdminInfo(){
+  loadAdminUsers();
   try{const r=await fetch('/api/admin/info',{headers:{'x-session-token':getToken()}});const d=await r.json();if(d.error)return;
   document.getElementById('current-pwd-display').textContent=d.agentPassword;
   window._lastActiveAgents=d.activeAgents||[];
@@ -5351,7 +5589,7 @@ async function runAnalysis(_mode){
     // #ASYNC: avvio l'analisi in background (risposta immediata con un jobId), poi interrogo
     // periodicamente lo stato invece di aspettare un'unica richiesta HTTP lunga (causa nota di
     // ERR_CONNECTION_CLOSED su Render quando la generazione superava i 2 minuti — vedi #128/#129/#135).
-    const startR=await fetch('/api/analyze-start',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken()},
+    const startR=await fetch('/api/analyze-start',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':getToken(),'x-device-id':getDeviceId()},
       body:JSON.stringify({company:suggestData?.company||domain,website,city:comune||provinciaLabel,comune,provincia:provinciaLabel,settore:settoreLabel,bizType,rilevanza,visibilita,selectedKeywords:selectedKws,selectedCompetitors:selectedComps,companyInfo:suggestData,apiMode:(window._isDemo||sessionStorage.getItem('seo_is_demo')==='1')?window._apiMode:null,activeSections:window._activeSections||null}),signal:window._activeAbortController.signal});
     const startData=await startR.json();
     console.log('[DIAG] /api/analyze-start RISPOSTA — status:'+startR.status+' hasError:'+(!!(startData&&startData.error))+' @'+new Date().toLocaleTimeString());
@@ -5360,6 +5598,7 @@ async function runAnalysis(_mode){
       clearInterval(iv);anTimerH.stop();document.getElementById('loading').style.display='none';document.getElementById('btn-suggest').disabled=false;
       window._analysisRunning=false;
       console.log('[DIAG] EXIT: analyze-start error → torno a selezione. Errore: '+startData.error);
+      if(startData.noCredits||startData.limitReached){ setTimeout(()=>openBuyCredits(startData.error),50); refreshQuota(); }
       document.querySelector('.card-form').style.display='block';
       document.getElementById('error-msg').textContent='Errore: '+startData.error;document.getElementById('error-msg').style.display='block';document.getElementById('step-select').style.display='block';document.getElementById('step-form').style.display='none';
       return;
