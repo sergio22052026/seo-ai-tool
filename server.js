@@ -57,6 +57,44 @@ async function initDB() {
         PRIMARY KEY (user_key, month)
       )
     `);
+    // Account personali (Free e Pro) e crediti Pro.
+    await dbClient.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        pwd_hash TEXT NOT NULL,
+        plan TEXT NOT NULL DEFAULT 'free',
+        credits INTEGER NOT NULL DEFAULT 0,
+        active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        last_login TIMESTAMPTZ
+      )
+    `);
+    // Pagamenti PayPal: order_id univoco = un ordine non può accreditare due volte.
+    await dbClient.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        order_id TEXT PRIMARY KEY,
+        user_id INTEGER,
+        user_email TEXT,
+        pack_id TEXT,
+        credits INTEGER,
+        amount TEXT,
+        currency TEXT,
+        status TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    // Movimenti crediti (ricariche manuali e acquisti) per lo storico admin.
+    await dbClient.query(`
+      CREATE TABLE IF NOT EXISTS credit_log (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        delta INTEGER,
+        reason TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
     console.log('✅ Database connesso e pronto.');
     flushLoginQueue();
   } catch (e) { console.error('❌ Errore DB:', e.message); dbClient = null; }
@@ -132,41 +170,157 @@ function traduciErroreAnthropic(err) {
 }
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin-super-2025';
 let agentPassword = process.env.ACCESS_PASSWORD || 'agenti2025';
-// ── Piani: FREE (stime, limite mensile) e PRO (dati reali). Internamente il Pro resta profile 'expert'.
-// FREE_PASSWORD ripiega sulle vecchie password Senior/agenti, così chi accedeva prima continua a entrare.
-// Variabile di runtime: getFreePassword() legge agentPassword, che l'admin può cambiare dal pannello.
-function getFreePassword() { return process.env.FREE_PASSWORD || process.env.SENIOR_PASSWORD || agentPassword; }
-const DEMO_PASSWORD = process.env.PRO_PASSWORD || process.env.EXPERT_PASSWORD || process.env.DEMO_PASSWORD || 'demo2025';
+// ── Piani: FREE (stime, limite mensile) e PRO (dati reali, a crediti). Internamente il Pro resta profile 'expert'.
+// Ogni utente ha un account personale (email + password) nella tabella users. L'admin entra nel Pro con ADMIN_PASSWORD.
 const DEMO_API_KEY = process.env.PRO_API_KEY || process.env.EXPERT_API_KEY || process.env.DEMO_API_KEY || ANTHROPIC_API_KEY;
 const FREE_API_KEY = process.env.FREE_API_KEY || ANTHROPIC_API_KEY || DEMO_API_KEY;
 const FREE_MONTHLY_LIMIT = Math.max(parseInt(process.env.FREE_MONTHLY_LIMIT, 10) || 3, 0);
 
-// Conteggio report Free del mese (DB se disponibile, altrimenti memoria).
+// Password: scrypt con sale casuale (modulo crypto di Node, nessuna dipendenza esterna).
+function hashPassword(pwd) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const h = crypto.scryptSync(String(pwd), salt, 64).toString('hex');
+  return 'scrypt$' + salt + '$' + h;
+}
+function verifyPassword(pwd, stored) {
+  try {
+    const [alg, salt, h] = String(stored || '').split('$');
+    if (alg !== 'scrypt' || !salt || !h) return false;
+    const calc = crypto.scryptSync(String(pwd), salt, 64);
+    const ref = Buffer.from(h, 'hex');
+    return ref.length === calc.length && crypto.timingSafeEqual(ref, calc);
+  } catch (_) { return false; }
+}
+function randomPassword() {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let s = ''; const b = crypto.randomBytes(10);
+  for (let i = 0; i < 10; i++) s += abc[b[i] % abc.length];
+  return s;
+}
+function normEmail(e) { return String(e || '').trim().toLowerCase(); }
+async function getUserByEmail(email) {
+  if (!dbClient) return null;
+  const r = await dbClient.query('SELECT * FROM users WHERE email=$1', [normEmail(email)]);
+  return r.rows[0] || null;
+}
+async function getUserById(id) {
+  if (!dbClient || !id) return null;
+  const r = await dbClient.query('SELECT * FROM users WHERE id=$1', [id]);
+  return r.rows[0] || null;
+}
+function publicUser(u) {
+  if (!u) return null;
+  return { id: u.id, name: u.name, email: u.email, plan: u.plan, credits: u.credits, active: u.active, createdAt: u.created_at, lastLogin: u.last_login };
+}
+
+// Conteggio report Free del mese: per email (account) e per dispositivo (freno a chi crea più account).
 const _freeUsageMem = new Map();
 function _monthKey() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
 function freeUserKey(session) { return ((session && (session.email || session.agentName)) || 'anonimo').trim().toLowerCase(); }
-async function getFreeUsage(session) {
-  const k = freeUserKey(session), m = _monthKey();
+function deviceKey(req) {
+  const d = String((req && req.headers['x-device-id']) || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 64);
+  return d ? 'dev:' + d : '';
+}
+async function _usageGet(k) {
+  const m = _monthKey();
   if (dbClient) {
     try {
       const r = await dbClient.query('SELECT count FROM free_usage WHERE user_key=$1 AND month=$2', [k, m]);
       return r.rows.length ? r.rows[0].count : 0;
-    } catch (e) { console.error('getFreeUsage:', e.message); }
+    } catch (e) { console.error('usageGet:', e.message); }
   }
   return _freeUsageMem.get(k + '|' + m) || 0;
 }
-async function addFreeUsage(session) {
-  const k = freeUserKey(session), m = _monthKey();
+async function _usageAdd(k) {
+  const m = _monthKey();
   _freeUsageMem.set(k + '|' + m, (_freeUsageMem.get(k + '|' + m) || 0) + 1);
   if (dbClient) {
     try {
       await dbClient.query('INSERT INTO free_usage (user_key, month, count) VALUES ($1,$2,1) ON CONFLICT (user_key, month) DO UPDATE SET count = free_usage.count + 1', [k, m]);
-    } catch (e) { console.error('addFreeUsage:', e.message); }
+    } catch (e) { console.error('usageAdd:', e.message); }
   }
+}
+async function getFreeUsage(session) { return _usageGet(freeUserKey(session)); }
+async function addFreeUsage(session, req) {
+  await _usageAdd(freeUserKey(session));
+  const dk = deviceKey(req); if (dk) await _usageAdd(dk);
+}
+// true se l'utente Free ha ancora report: limite sia sull'account sia sul dispositivo.
+async function freeHasQuota(session, req) {
+  if ((await getFreeUsage(session)) >= FREE_MONTHLY_LIMIT) return false;
+  const dk = deviceKey(req);
+  if (dk && (await _usageGet(dk)) >= FREE_MONTHLY_LIMIT) return false;
+  return true;
 }
 function isFreeSession(session) { return !!session && session.role === 'agent' && session.profile !== 'expert' && !session.isDemo; }
 function freeLimitMessage() {
-  return 'Hai usato tutti i ' + FREE_MONTHLY_LIMIT + ' report gratuiti di questo mese. Passa al piano Pro per continuare senza limiti.';
+  return 'Hai usato tutti i ' + FREE_MONTHLY_LIMIT + ' report gratuiti di questo mese. Passa al piano Pro per continuare.';
+}
+const NO_CREDITS_MSG = 'Hai finito i crediti Pro. Acquista un pacchetto di crediti per generare altri report.';
+
+// Crediti Pro: riservo 1 credito all'avvio del report (atomico), lo restituisco se il report fallisce.
+async function reserveProCredit(session) {
+  if (!session || session.unlimited) return { ok: true, reserved: false };
+  if (!dbClient || !session.userId) return { ok: false, error: 'Account non disponibile: database non connesso.' };
+  const r = await dbClient.query('UPDATE users SET credits = credits - 1 WHERE id=$1 AND active AND plan=\'pro\' AND credits > 0 RETURNING credits', [session.userId]);
+  if (!r.rows.length) return { ok: false, error: NO_CREDITS_MSG, noCredits: true };
+  return { ok: true, reserved: true, credits: r.rows[0].credits };
+}
+async function refundProCredit(session) {
+  if (!dbClient || !session || !session.userId) return;
+  try { await dbClient.query('UPDATE users SET credits = credits + 1 WHERE id=$1', [session.userId]); } catch (e) { console.error('refundProCredit:', e.message); }
+}
+// Controllo unico all'avvio di un report completo. Ritorna { ok, error?, status?, onDone(), onFail() }.
+async function gateFullReport(session, req) {
+  const noop = async () => {};
+  if (!session || session.role !== 'agent' || session.unlimited) return { ok: true, onDone: noop, onFail: noop };
+  // Il piano si rilegge dal DB: se l'admin lo ha cambiato, vale subito.
+  let plan = session.profile === 'expert' ? 'pro' : 'free';
+  if (dbClient && session.userId) {
+    const u = await getUserById(session.userId);
+    if (!u || !u.active) return { ok: false, status: 401, error: 'Account non attivo. Contatta l\'assistenza.' };
+    plan = u.plan;
+  }
+  if (plan === 'pro') {
+    const rc = await reserveProCredit(session);
+    if (!rc.ok) return { ok: false, status: rc.noCredits ? 402 : 503, error: rc.error, noCredits: !!rc.noCredits };
+    return { ok: true, onDone: noop, onFail: () => refundProCredit(session) };
+  }
+  if (!(await freeHasQuota(session, req))) return { ok: false, status: 403, error: freeLimitMessage(), limitReached: true };
+  return { ok: true, onDone: () => addFreeUsage(session, req), onFail: noop };
+}
+
+// ── PayPal: pacchetti di crediti acquistabili ──
+// PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET dall'app PayPal Developer; PAYPAL_MODE = 'sandbox' (prove) o 'live'.
+// CREDIT_PACKS = "crediti:prezzo" separati da virgola, prezzi in euro. Es.: "10:49,25:99,60:199".
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
+const PAYPAL_MODE = (process.env.PAYPAL_MODE || 'sandbox').toLowerCase() === 'live' ? 'live' : 'sandbox';
+const PAYPAL_API = PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+const PAYPAL_CURRENCY = 'EUR';
+function parseCreditPacks(s) {
+  const out = [];
+  String(s || '10:49,25:99,60:199').split(',').forEach((p, i) => {
+    const [c, pr] = p.split(':').map(x => (x || '').trim());
+    const credits = parseInt(c, 10), price = parseFloat(String(pr).replace(',', '.'));
+    if (credits > 0 && price > 0) out.push({ id: 'p' + (i + 1), credits, price: price.toFixed(2) });
+  });
+  return out;
+}
+const CREDIT_PACKS = parseCreditPacks(process.env.CREDIT_PACKS);
+const paypalEnabled = () => !!(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET && dbClient);
+let _ppToken = null, _ppTokenExp = 0;
+async function paypalToken() {
+  if (_ppToken && Date.now() < _ppTokenExp) return _ppToken;
+  const r = await fetch(PAYPAL_API + '/v1/oauth2/token', {
+    method: 'POST',
+    headers: { 'Authorization': 'Basic ' + Buffer.from(PAYPAL_CLIENT_ID + ':' + PAYPAL_CLIENT_SECRET).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials'
+  });
+  const d = await r.json();
+  if (!r.ok || !d.access_token) throw new Error('PayPal: autenticazione non riuscita (controlla PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET e PAYPAL_MODE).');
+  _ppToken = d.access_token; _ppTokenExp = Date.now() + Math.max((d.expires_in || 300) - 60, 60) * 1000;
+  return _ppToken;
 }
 
 // ── Mod AT (rev12): integrazione Apify per dati Facebook REALI (follower, rating, recensioni) ──
@@ -420,45 +574,256 @@ function isAdmin(req) {
   return session && session.role === 'admin' && Date.now() - session.createdAt < 8 * 60 * 60 * 1000;
 }
 
-// Accesso piano FREE: nome + email (obbligatoria, serve a contare i report del mese) + password.
-// Usa la chiave AI del server; nessuna chiave personale richiesta.
-app.post('/api/login', async (req, res) => {
-  const { password, agentName, email } = req.body || {};
-  if (!password || password !== getFreePassword()) return res.status(401).json({ error: 'Password errata.' });
-  if (!FREE_API_KEY) return res.status(500).json({ error: 'Il servizio non è ancora configurato. Contatta l\'assistenza.' });
-  if (!email || !String(email).trim()) return res.status(400).json({ error: 'Inserisci la tua email: serve per il piano Free.' });
-  const ev = await validateEmail(email);
-  if (!ev.ok) return res.status(400).json({ error: ev.reason === 'formato' ? 'Email non valida: controlla il formato (es. nome@dominio.it).' : 'Email non valida: il dominio non risulta esistente o non riceve posta.' });
+// ══════════ ACCOUNT PERSONALI: registrazione Free, accesso con email + password ══════════
+// Freni anti-abuso in memoria: tentativi di accesso falliti per email e registrazioni per IP.
+const _failedLogins = new Map();   // email -> { n, until }
+const _signupsByIp = new Map();    // ip -> [timestamp...]
+function _clientIp(req) { return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(); }
+function _loginLocked(email) { const f = _failedLogins.get(email); return !!(f && f.until && Date.now() < f.until); }
+function _loginFailed(email) {
+  const f = _failedLogins.get(email) || { n: 0, until: 0 };
+  f.n++; if (f.n >= 8) { f.until = Date.now() + 15 * 60 * 1000; f.n = 0; }
+  _failedLogins.set(email, f);
+}
+function _openSession(res, u, extra) {
   const token = generateToken();
-  const nm = (agentName||'').trim()||'Utente';
-  const sess = { createdAt: Date.now(), role: 'agent', apiKey: FREE_API_KEY, agentName: nm, profile: 'free', email: ev.email || '' };
+  const isPro = u.plan === 'pro';
+  const sess = Object.assign({
+    createdAt: Date.now(), role: 'agent', userId: u.id, agentName: u.name || u.email, email: u.email,
+    profile: isPro ? 'expert' : 'free', isDemo: isPro, apiKey: isPro ? DEMO_API_KEY : FREE_API_KEY
+  }, extra || {});
   setSession(token, sess);
-  logAgentLogin(nm, 'free');
-  const used = await getFreeUsage(sess);
-  res.json({ token, role: 'agent', profile: 'free', email: ev.email || '', quota: { used, limit: FREE_MONTHLY_LIMIT } });
-});
+  logAgentLogin(sess.agentName, isPro ? 'pro' : 'free');
+  return { token, sess };
+}
+async function _meInfo(sess, req) {
+  const out = { name: sess.agentName, email: sess.email, plan: sess.profile === 'expert' ? 'pro' : 'free', unlimited: !!sess.unlimited };
+  if (sess.unlimited) return out;
+  if (dbClient && sess.userId) {
+    const u = await getUserById(sess.userId);
+    if (u) { out.plan = u.plan; out.credits = u.credits; out.active = u.active; }
+  }
+  if (out.plan === 'free') {
+    const used = await getFreeUsage(sess);
+    const dk = deviceKey(req); const usedDev = dk ? await _usageGet(dk) : 0;
+    const usedMax = Math.max(used, usedDev);
+    out.freeUsed = usedMax; out.freeLimit = FREE_MONTHLY_LIMIT; out.freeRemaining = Math.max(FREE_MONTHLY_LIMIT - usedMax, 0);
+  }
+  return out;
+}
 
-// Accesso piano PRO (internamente profile 'expert').
-app.post('/api/login/demo', async (req, res) => {
-  const { password, agentName, email } = req.body || {};
-  if (!password || password !== DEMO_PASSWORD) return res.status(401).json({ error: 'Password Pro errata.' });
-  if (!DEMO_API_KEY) return res.status(500).json({ error: 'Il piano Pro non è ancora configurato. Contatta l\'assistenza.' });
+app.post('/api/auth/register', async (req, res) => {
+  if (!dbClient) return res.status(503).json({ error: 'La registrazione non è disponibile in questo momento. Riprova più tardi.' });
+  const { name, email, password } = req.body || {};
+  const nm = String(name || '').trim();
+  if (!nm) return res.status(400).json({ error: 'Inserisci nome e cognome.' });
+  if (!password || String(password).length < 8) return res.status(400).json({ error: 'La password deve avere almeno 8 caratteri.' });
   const ev = await validateEmail(email);
-  if (!ev.ok) return res.status(400).json({ error: ev.reason === 'formato' ? 'Email non valida: controlla il formato (es. nome@dominio.it).' : 'Email non valida: il dominio non risulta esistente o non riceve posta.' });
-  const token = generateToken();
-  const nm = (agentName||'').trim()||'Utente Pro';
-  setSession(token, { createdAt: Date.now(), role: 'agent', apiKey: DEMO_API_KEY, isDemo: true, agentName: nm, profile: 'expert', email: ev.email || '' });
-  logAgentLogin(nm, 'pro');
-  res.json({ token, role: 'agent', profile: 'expert', email: ev.email || '' });
+  if (!email || !ev.ok) return res.status(400).json({ error: 'Email non valida: controlla di averla scritta bene (es. nome@azienda.it).' });
+  const em = normEmail(ev.email || email);
+  const ip = _clientIp(req); const now = Date.now();
+  const recent = (_signupsByIp.get(ip) || []).filter(t => now - t < 60 * 60 * 1000);
+  if (recent.length >= 5) return res.status(429).json({ error: 'Troppe registrazioni da questa rete. Riprova più tardi.' });
+  try {
+    if (await getUserByEmail(em)) return res.status(409).json({ error: 'Esiste già un account con questa email. Accedi con la tua password.' });
+    const r = await dbClient.query('INSERT INTO users (email, name, pwd_hash, plan, credits, last_login) VALUES ($1,$2,$3,\'free\',0,NOW()) RETURNING *', [em, nm, hashPassword(password)]);
+    recent.push(now); _signupsByIp.set(ip, recent);
+    const { token, sess } = _openSession(res, r.rows[0]);
+    res.json({ token, role: 'agent', profile: sess.profile, me: await _meInfo(sess, req) });
+  } catch (e) { console.error('register:', e.message); res.status(500).json({ error: 'Registrazione non riuscita. Riprova.' }); }
 });
 
-// Report Free rimasti nel mese (per la barra in alto).
-app.get('/api/quota', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  const em = normEmail(email);
+  if (!em || !password) return res.status(400).json({ error: 'Inserisci email e password.' });
+  // Il titolare entra nel Pro con la password di amministratore, senza crediti.
+  if (password === ADMIN_PASSWORD) {
+    const nm = em.split('@')[0] || 'Amministratore';
+    const token = generateToken();
+    const sess = { createdAt: Date.now(), role: 'agent', agentName: nm, email: em, profile: 'expert', isDemo: true, unlimited: true, apiKey: DEMO_API_KEY };
+    setSession(token, sess);
+    logAgentLogin(nm, 'pro');
+    return res.json({ token, role: 'agent', profile: 'expert', me: await _meInfo(sess, req) });
+  }
+  if (!dbClient) return res.status(503).json({ error: 'Accesso non disponibile in questo momento. Riprova più tardi.' });
+  if (_loginLocked(em)) return res.status(429).json({ error: 'Troppi tentativi errati. Riprova tra 15 minuti.' });
+  try {
+    const u = await getUserByEmail(em);
+    if (!u || !verifyPassword(password, u.pwd_hash)) { _loginFailed(em); return res.status(401).json({ error: 'Email o password errate.' }); }
+    if (!u.active) return res.status(403).json({ error: 'Account disattivato. Contatta l\'assistenza.' });
+    _failedLogins.delete(em);
+    dbClient.query('UPDATE users SET last_login=NOW() WHERE id=$1', [u.id]).catch(() => {});
+    const { token, sess } = _openSession(res, u);
+    res.json({ token, role: 'agent', profile: sess.profile, me: await _meInfo(sess, req) });
+  } catch (e) { console.error('login:', e.message); res.status(500).json({ error: 'Accesso non riuscito. Riprova.' }); }
+});
+
+// Cambio password dell'utente collegato.
+app.post('/api/auth/password', async (req, res) => {
+  const sess = isAuthenticated(req) ? sessions.get(req.headers['x-session-token']) : null;
+  if (!sess || !sess.userId || !dbClient) return res.status(401).json({ error: 'Non autenticato' });
+  const { current, next } = req.body || {};
+  if (!next || String(next).length < 8) return res.status(400).json({ error: 'La nuova password deve avere almeno 8 caratteri.' });
+  const u = await getUserById(sess.userId);
+  if (!u || !verifyPassword(current, u.pwd_hash)) return res.status(401).json({ error: 'La password attuale non è corretta.' });
+  await dbClient.query('UPDATE users SET pwd_hash=$1 WHERE id=$2', [hashPassword(next), u.id]);
+  res.json({ ok: true });
+});
+
+// Situazione dell'utente collegato: piano, crediti Pro o report Free rimasti.
+app.get('/api/me', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
   const sess = sessions.get(req.headers['x-session-token']);
-  if (!isFreeSession(sess)) return res.json({ plan: 'pro', unlimited: true });
-  const used = await getFreeUsage(sess);
-  res.json({ plan: 'free', used, limit: FREE_MONTHLY_LIMIT, remaining: Math.max(FREE_MONTHLY_LIMIT - used, 0) });
+  if (sess.role !== 'agent') return res.json({ plan: 'admin' });
+  try { res.json(await _meInfo(sess, req)); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// Compatibilità con la versione precedente della pagina.
+app.get('/api/quota', async (req, res) => {
+  if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
+  const me = await _meInfo(sessions.get(req.headers['x-session-token']), req);
+  if (me.plan !== 'free') return res.json({ plan: 'pro', unlimited: !!me.unlimited, credits: me.credits });
+  res.json({ plan: 'free', used: me.freeUsed, limit: me.freeLimit, remaining: me.freeRemaining });
+});
+
+// ══════════ ACQUISTO CREDITI CON PAYPAL ══════════
+app.get('/api/billing/config', (req, res) => {
+  res.json({ enabled: paypalEnabled(), clientId: paypalEnabled() ? PAYPAL_CLIENT_ID : '', currency: PAYPAL_CURRENCY, mode: PAYPAL_MODE, packs: CREDIT_PACKS });
+});
+
+app.post('/api/billing/create-order', async (req, res) => {
+  const sess = isAuthenticated(req) ? sessions.get(req.headers['x-session-token']) : null;
+  if (!sess || sess.role !== 'agent' || !sess.userId) return res.status(401).json({ error: 'Accedi con il tuo account per acquistare crediti.' });
+  if (!paypalEnabled()) return res.status(503).json({ error: 'Il pagamento non è ancora attivo.' });
+  const pack = CREDIT_PACKS.find(p => p.id === (req.body || {}).packId);
+  if (!pack) return res.status(400).json({ error: 'Pacchetto non valido.' });
+  try {
+    const tk = await paypalToken();
+    const r = await fetch(PAYPAL_API + '/v2/checkout/orders', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [{
+          reference_id: pack.id, custom_id: String(sess.userId),
+          description: 'Digital Analyzer Pro — ' + pack.credits + ' crediti',
+          amount: { currency_code: PAYPAL_CURRENCY, value: pack.price }
+        }]
+      })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.id) { console.error('[PAYPAL] create-order', r.status, JSON.stringify(d).slice(0, 300)); return res.status(502).json({ error: 'PayPal non ha accettato l\'ordine. Riprova.' }); }
+    if (dbClient) await dbClient.query('INSERT INTO payments (order_id, user_id, user_email, pack_id, credits, amount, currency, status) VALUES ($1,$2,$3,$4,$5,$6,$7,\'CREATED\') ON CONFLICT (order_id) DO NOTHING',
+      [d.id, sess.userId, sess.email, pack.id, pack.credits, pack.price, PAYPAL_CURRENCY]);
+    res.json({ orderId: d.id });
+  } catch (e) { console.error('[PAYPAL] create-order:', e.message); res.status(502).json({ error: 'Pagamento non disponibile in questo momento.' }); }
+});
+
+app.post('/api/billing/capture', async (req, res) => {
+  const sess = isAuthenticated(req) ? sessions.get(req.headers['x-session-token']) : null;
+  if (!sess || sess.role !== 'agent' || !sess.userId) return res.status(401).json({ error: 'Non autenticato' });
+  if (!paypalEnabled()) return res.status(503).json({ error: 'Il pagamento non è ancora attivo.' });
+  const orderId = String((req.body || {}).orderId || '');
+  try {
+    const pr = await dbClient.query('SELECT * FROM payments WHERE order_id=$1', [orderId]);
+    const pay = pr.rows[0];
+    if (!pay || pay.user_id !== sess.userId) return res.status(404).json({ error: 'Ordine non trovato.' });
+    if (pay.status === 'COMPLETED') { const u = await getUserById(sess.userId); return res.json({ ok: true, already: true, credits: u ? u.credits : null }); }
+    const tk = await paypalToken();
+    const r = await fetch(PAYPAL_API + '/v2/checkout/orders/' + encodeURIComponent(orderId) + '/capture', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json' }
+    });
+    const d = await r.json();
+    const cap = d && d.purchase_units && d.purchase_units[0] && d.purchase_units[0].payments && d.purchase_units[0].payments.captures && d.purchase_units[0].payments.captures[0];
+    const okAmount = cap && cap.amount && cap.amount.currency_code === pay.currency && Number(cap.amount.value) === Number(pay.amount);
+    if (!r.ok || d.status !== 'COMPLETED' || !cap || cap.status !== 'COMPLETED' || !okAmount) {
+      console.error('[PAYPAL] capture non completata', r.status, JSON.stringify(d).slice(0, 300));
+      await dbClient.query('UPDATE payments SET status=$1 WHERE order_id=$2', ['FAILED', orderId]).catch(() => {});
+      return res.status(402).json({ error: 'Il pagamento non è stato completato. Nessun addebito di crediti.' });
+    }
+    // Accredito una sola volta: aggiorno lo stato solo se non era già COMPLETED.
+    const up = await dbClient.query('UPDATE payments SET status=\'COMPLETED\' WHERE order_id=$1 AND status<>\'COMPLETED\' RETURNING credits', [orderId]);
+    if (up.rows.length) {
+      // L'acquisto porta automaticamente l'account al piano Pro.
+      await dbClient.query('UPDATE users SET credits = credits + $1, plan=\'pro\' WHERE id=$2', [pay.credits, sess.userId]);
+      await dbClient.query('INSERT INTO credit_log (user_id, delta, reason) VALUES ($1,$2,$3)', [sess.userId, pay.credits, 'PayPal ' + orderId + ' (' + pay.amount + ' ' + pay.currency + ')']);
+      // La sessione diventa Pro subito, senza dover rientrare.
+      sess.profile = 'expert'; sess.isDemo = true; sess.apiKey = DEMO_API_KEY; setSession(req.headers['x-session-token'], sess);
+    }
+    const u = await getUserById(sess.userId);
+    res.json({ ok: true, credits: u ? u.credits : null, plan: 'pro' });
+  } catch (e) { console.error('[PAYPAL] capture:', e.message); res.status(502).json({ error: 'Verifica del pagamento non riuscita. Se l\'addebito è avvenuto, contatta l\'assistenza.' }); }
+});
+
+// ══════════ GESTIONE UTENTI (solo amministratore) ══════════
+app.get('/api/admin/users', async (req, res) => {
+  if (!isAdmin(req)) return res.status(401).json({ error: 'Non autorizzato' });
+  if (!dbClient) return res.json({ users: [], dbEnabled: false });
+  try {
+    const r = await dbClient.query('SELECT * FROM users ORDER BY created_at DESC LIMIT 2000');
+    const m = _monthKey();
+    const fu = await dbClient.query('SELECT user_key, count FROM free_usage WHERE month=$1', [m]);
+    const used = {}; fu.rows.forEach(x => { used[x.user_key] = x.count; });
+    res.json({ dbEnabled: true, freeLimit: FREE_MONTHLY_LIMIT, users: r.rows.map(u => Object.assign(publicUser(u), { freeUsed: used[u.email] || 0 })) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Crea un utente (di norma Pro) con password generata o scelta. Restituisce la password una sola volta.
+app.post('/api/admin/users', async (req, res) => {
+  if (!isAdmin(req)) return res.status(401).json({ error: 'Non autorizzato' });
+  if (!dbClient) return res.status(503).json({ error: 'Database non connesso.' });
+  const { name, email, plan, credits, password } = req.body || {};
+  const em = normEmail(email);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return res.status(400).json({ error: 'Email non valida.' });
+  const pwd = (password && String(password).length >= 8) ? String(password) : randomPassword();
+  const pl = plan === 'free' ? 'free' : 'pro';
+  const cr = Math.max(parseInt(credits, 10) || 0, 0);
+  try {
+    if (await getUserByEmail(em)) return res.status(409).json({ error: 'Esiste già un utente con questa email.' });
+    const r = await dbClient.query('INSERT INTO users (email, name, pwd_hash, plan, credits) VALUES ($1,$2,$3,$4,$5) RETURNING *', [em, String(name || '').trim() || em, hashPassword(pwd), pl, cr]);
+    if (cr) await dbClient.query('INSERT INTO credit_log (user_id, delta, reason) VALUES ($1,$2,$3)', [r.rows[0].id, cr, 'Creazione utente']);
+    res.json({ ok: true, user: publicUser(r.rows[0]), password: pwd });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Modifica utente: ricarica/scalo crediti, cambio piano, attiva/disattiva, nuova password.
+app.post('/api/admin/users/:id', async (req, res) => {
+  if (!isAdmin(req)) return res.status(401).json({ error: 'Non autorizzato' });
+  if (!dbClient) return res.status(503).json({ error: 'Database non connesso.' });
+  const id = parseInt(req.params.id, 10);
+  const { addCredits, plan, active, resetPassword } = req.body || {};
+  try {
+    const u = await getUserById(id);
+    if (!u) return res.status(404).json({ error: 'Utente non trovato.' });
+    let newPwd = null;
+    if (addCredits !== undefined) {
+      const d = parseInt(addCredits, 10) || 0;
+      if (d) {
+        await dbClient.query('UPDATE users SET credits = GREATEST(credits + $1, 0) WHERE id=$2', [d, id]);
+        await dbClient.query('INSERT INTO credit_log (user_id, delta, reason) VALUES ($1,$2,$3)', [id, d, 'Ricarica manuale admin']);
+      }
+    }
+    if (plan === 'free' || plan === 'pro') await dbClient.query('UPDATE users SET plan=$1 WHERE id=$2', [plan, id]);
+    if (active === true || active === false) {
+      await dbClient.query('UPDATE users SET active=$1 WHERE id=$2', [active, id]);
+      if (active === false) for (const [tk, s] of sessions.entries()) { if (s.userId === id) { sessions.delete(tk); dropSession(tk); } }
+    }
+    if (resetPassword) { newPwd = randomPassword(); await dbClient.query('UPDATE users SET pwd_hash=$1 WHERE id=$2', [hashPassword(newPwd), id]); }
+    // Le sessioni aperte dell'utente seguono il nuovo piano senza dover rientrare.
+    if (plan === 'free' || plan === 'pro') for (const [tk, s] of sessions.entries()) {
+      if (s.userId === id) { s.profile = plan === 'pro' ? 'expert' : 'free'; s.isDemo = plan === 'pro'; s.apiKey = plan === 'pro' ? DEMO_API_KEY : FREE_API_KEY; setSession(tk, s); }
+    }
+    res.json({ ok: true, user: publicUser(await getUserById(id)), password: newPwd });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/admin/payments', async (req, res) => {
+  if (!isAdmin(req)) return res.status(401).json({ error: 'Non autorizzato' });
+  if (!dbClient) return res.json({ payments: [] });
+  try {
+    const r = await dbClient.query('SELECT order_id, user_email, credits, amount, currency, status, created_at FROM payments ORDER BY created_at DESC LIMIT 500');
+    res.json({ payments: r.rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/login', (req, res) => {
@@ -1732,10 +2097,11 @@ QUALITA TESTI BENCHMARK: per ogni competitor, strengths e weaknesses devono esse
 app.post('/api/analyze', async (req, res) => {
   try {
     const _fs = sessions.get(req.headers['x-session-token']);
-    const _isFree = isFreeSession(_fs);
-    if (_isFree && (await getFreeUsage(_fs)) >= FREE_MONTHLY_LIMIT) return res.status(403).json({ error: freeLimitMessage(), limitReached: true });
-    const parsed = await runFullAnalysis(req);
-    if (_isFree) addFreeUsage(_fs);
+    const g = await gateFullReport(_fs, req);
+    if (!g.ok) return res.status(g.status || 403).json({ error: g.error, limitReached: !!g.limitReached, noCredits: !!g.noCredits });
+    let parsed;
+    try { parsed = await runFullAnalysis(req); } catch (e) { await g.onFail(); throw e; }
+    await g.onDone();
     res.json(parsed);
   } catch (err) {
     if (err instanceof AnalysisError) return res.status(err.statusCode).json({ error: err.message });
@@ -1760,12 +2126,11 @@ app.post('/api/analyze-start', async (req, res) => {
   if (!isAuthenticated(req)) return res.status(401).json({ error: 'Non autenticato' });
   if (!req.body || !req.body.company) return res.status(400).json({ error: 'company mancante' });
   if (!getApiKey(req)) return res.status(500).json({ error: 'Il servizio di analisi non è configurato. Contatta l\'assistenza.' });
-  // Piano Free: blocco se il tetto mensile è raggiunto (il report si conta solo quando va a buon fine).
+  // Free: tetto mensile (contato solo se il report va a buon fine). Pro: 1 credito riservato ora, restituito se fallisce.
   const _fs = sessions.get(req.headers['x-session-token']);
-  const _isFree = isFreeSession(_fs);
-  if (_isFree && (await getFreeUsage(_fs)) >= FREE_MONTHLY_LIMIT) {
-    return res.status(403).json({ error: freeLimitMessage(), limitReached: true });
-  }
+  let g;
+  try { g = await gateFullReport(_fs, req); } catch (e) { console.error('gateFullReport:', e.message); return res.status(503).json({ error: 'Servizio momentaneamente non disponibile. Riprova.' }); }
+  if (!g.ok) return res.status(g.status || 403).json({ error: g.error, limitReached: !!g.limitReached, noCredits: !!g.noCredits });
 
   const jobId = crypto.randomBytes(16).toString('hex');
   analysisJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
@@ -1773,8 +2138,9 @@ app.post('/api/analyze-start', async (req, res) => {
 
   // Fire-and-forget: il client farà polling su /api/analyze-status/:jobId.
   runFullAnalysis(req)
-    .then(parsed => { analysisJobs.set(jobId, { status: 'done', data: parsed, createdAt: Date.now() }); if (_isFree) addFreeUsage(_fs); })
+    .then(parsed => { analysisJobs.set(jobId, { status: 'done', data: parsed, createdAt: Date.now() }); g.onDone(); })
     .catch(err => {
+      g.onFail();
       const msg = (err instanceof AnalysisError) ? err.message : traduciErroreAnthropic(err);
       console.error('[ASYNC-ANALYZE] job ' + jobId + ' fallito:', msg);
       analysisJobs.set(jobId, { status: 'error', error: msg, createdAt: Date.now() });
@@ -2095,7 +2461,7 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`\n✅ SEO AI Tool v4 avviato su http://localhost:${PORT}`);
-  console.log(`🔑 Piano Free: password configurata, limite ${FREE_MONTHLY_LIMIT} report/mese`);
+  console.log(`🔑 Account personali: Free ${FREE_MONTHLY_LIMIT} report/mese, Pro a crediti. PayPal: ${PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET ? PAYPAL_MODE : "non configurato"} · pacchetti ${CREDIT_PACKS.map(p => p.credits + "=" + p.price + "€").join(", ")}`);
   console.log(`🛡️  Password admin:  ${ADMIN_PASSWORD}\n`);
   initDB().then(() => hydrateSessions());
 });

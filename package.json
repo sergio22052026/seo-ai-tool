@@ -1,7 +1,7 @@
 {
   "name": "seo-ai-tool",
   "version": "2.0.0",
-  "description": "SEO AI Analyzer — Italia Online",
+  "description": "Digital Analyzer Pro — analisi della presenza digitale per PMI",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "dependencies": {
